@@ -13,10 +13,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.barberialuquitas.screens.AdminHomeScreen
-import com.example.barberialuquitas.screens.ClienteHomeScreen
 import com.example.barberialuquitas.screens.LoginScreen
 import com.example.barberialuquitas.screens.RegisterScreen
 import com.example.barberialuquitas.screens.SuccessScreen
+import com.example.barberialuquitas.screens.cliente.ClienteHomeScreen
 import com.example.barberialuquitas.ui.theme.BarberiaLuquitasTheme
 
 class MainActivity : ComponentActivity() {

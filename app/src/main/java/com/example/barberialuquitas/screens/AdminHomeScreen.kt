@@ -18,32 +18,7 @@ import androidx.navigation.NavController
 import com.example.barberialuquitas.data.AuthRepository
 
 @Composable
-fun ClienteHomeScreen(navController: NavController, authRepository: AuthRepository = remember { AuthRepository() }) {
-    PantallaBienvenida(
-        titulo = "Área de cliente",
-        subtitulo = "Aquí verás el catálogo de servicios y tus reservas próximamente.",
-        navController = navController,
-        authRepository = authRepository
-    )
-}
-
-@Composable
 fun AdminHomeScreen(navController: NavController, authRepository: AuthRepository = remember { AuthRepository() }) {
-    PantallaBienvenida(
-        titulo = "Panel de administrador",
-        subtitulo = "Panel de control en construcción.",
-        navController = navController,
-        authRepository = authRepository
-    )
-}
-
-@Composable
-private fun PantallaBienvenida(
-    titulo: String,
-    subtitulo: String,
-    navController: NavController,
-    authRepository: AuthRepository
-) {
     val darkBackground = Color(0xFF151515)
     val goldAccent = Color(0xFFE5B94E)
     val textGray = Color(0xFFA0A0A0)
@@ -53,17 +28,15 @@ private fun PantallaBienvenida(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(titulo, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Panel de administrador", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
-        Text(subtitulo, color = textGray, fontSize = 14.sp)
+        Text("Panel de control en construcción.", color = textGray, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
             onClick = {
                 authRepository.cerrarSesion()
-                navController.navigate("login") {
-                    popUpTo(0)
-                }
+                navController.navigate("login") { popUpTo(0) }
             },
             modifier = Modifier.fillMaxWidth().height(50.dp),
             colors = ButtonDefaults.buttonColors(containerColor = goldAccent),

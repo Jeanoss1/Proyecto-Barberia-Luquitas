@@ -34,40 +34,48 @@ class AuthRepository(
             ).await()
 
         Result.success(usuario)
-    } catch (e: FirebaseAuthUserCollisionException) {
+    } catch (_: FirebaseAuthUserCollisionException) {
         Result.failure(Exception("Ese correo ya está registrado."))
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Result.failure(Exception("No se pudo completar el registro. Intenta nuevamente."))
     }
 
     suspend fun iniciarSesion(correo: String, password: String): Result<Usuario> = try {
         val resultado = auth.signInWithEmailAndPassword(correo, password).await()
         val uid = resultado.user?.uid ?: error("No se pudo obtener el usuario")
-
-        val documento = firestore.collection(COLECCION_USUARIOS).document(uid).get().await()
-        val usuario = Usuario(
-            uid = uid,
-            nombre = documento.getString("nombre") ?: "",
-            correo = documento.getString("correo") ?: correo,
-            telefono = documento.getString("telefono") ?: "",
-            rol = documento.getString("rol") ?: "cliente"
-        )
-
-        Result.success(usuario)
-    } catch (e: FirebaseAuthInvalidUserException) {
+        Result.success(obtenerUsuario(uid, correo))
+    } catch (_: FirebaseAuthInvalidUserException) {
         Result.failure(Exception("Correo o contraseña incorrectos."))
-    } catch (e: FirebaseAuthInvalidCredentialsException) {
+    } catch (_: FirebaseAuthInvalidCredentialsException) {
         Result.failure(Exception("Correo o contraseña incorrectos."))
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Result.failure(Exception("No se pudo iniciar sesión. Intenta nuevamente."))
     }
 
     suspend fun enviarCorreoRecuperacion(correo: String): Result<Unit> = try {
         auth.sendPasswordResetEmail(correo).await()
         Result.success(Unit)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         Result.failure(Exception("No se pudo enviar el correo de recuperación."))
     }
 
+    suspend fun obtenerUsuarioActual(): Result<Usuario> = try {
+        val uid = auth.currentUser?.uid ?: error("No hay una sesión activa")
+        Result.success(obtenerUsuario(uid, auth.currentUser?.email ?: ""))
+    } catch (_: Exception) {
+        Result.failure(Exception("No se pudo cargar el perfil."))
+    }
+
     fun cerrarSesion() = auth.signOut()
+
+    private suspend fun obtenerUsuario(uid: String, correoFallback: String): Usuario {
+        val documento = firestore.collection(COLECCION_USUARIOS).document(uid).get().await()
+        return Usuario(
+            uid = uid,
+            nombre = documento.getString("nombre") ?: "",
+            correo = documento.getString("correo") ?: correoFallback,
+            telefono = documento.getString("telefono") ?: "",
+            rol = documento.getString("rol") ?: "cliente"
+        )
+    }
 }
