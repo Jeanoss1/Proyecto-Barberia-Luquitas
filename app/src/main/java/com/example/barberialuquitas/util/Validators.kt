@@ -7,3 +7,9 @@ fun esCorreoValido(correo: String): Boolean =
 
 fun esPasswordValida(password: String): Boolean =
     password.length >= 6
+
+fun soloLetras(texto: String): String =
+    texto.filter { it.isLetter() || it.isWhitespace() }
+
+fun soloDigitos(texto: String): String =
+    texto.filter { it.isDigit() }

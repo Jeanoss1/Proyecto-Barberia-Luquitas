@@ -14,17 +14,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.navigation.NavController
 import com.example.barberialuquitas.R
 import com.example.barberialuquitas.components.CustomTextField
+import com.example.barberialuquitas.components.DivisorConTexto
+import com.example.barberialuquitas.components.GoogleSignInButton
 import com.example.barberialuquitas.components.PasswordField
 import com.example.barberialuquitas.data.AuthRepository
 import com.example.barberialuquitas.util.esCorreoValido
+import com.example.barberialuquitas.util.obtenerGoogleIdToken
 import kotlinx.coroutines.launch
 
 @Composable
@@ -36,9 +41,34 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository = r
     var passwordError by remember { mutableStateOf<String?>(null) }
     var mensajeGeneral by remember { mutableStateOf<String?>(null) }
     var cargando by remember { mutableStateOf(false) }
+    var cargandoGoogle by remember { mutableStateOf(false) }
     var mostrarRecuperacion by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    fun irADestino(rol: String) {
+        val destino = if (rol == "administrador") "home_admin" else "home_cliente"
+        navController.navigate(destino) { popUpTo("login") { inclusive = true } }
+    }
+
+    fun iniciarSesionConGoogle() {
+        mensajeGeneral = null
+        cargandoGoogle = true
+        scope.launch {
+            try {
+                val idToken = obtenerGoogleIdToken(context)
+                val resultado = authRepository.iniciarSesionConGoogle(idToken)
+                cargandoGoogle = false
+                resultado.onSuccess { irADestino(it.rol) }.onFailure { mensajeGeneral = it.message }
+            } catch (_: GetCredentialCancellationException) {
+                cargandoGoogle = false
+            } catch (_: Exception) {
+                cargandoGoogle = false
+                mensajeGeneral = "No se pudo iniciar sesión con Google."
+            }
+        }
+    }
 
     val darkBackground = Color(0xFF151515)
     val formBackground = Color(0xFF252525)
@@ -110,17 +140,12 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository = r
                                 val resultado = authRepository.iniciarSesion(email, password)
                                 cargando = false
                                 resultado
-                                    .onSuccess { usuario ->
-                                        val destino = if (usuario.rol == "administrador") "home_admin" else "home_cliente"
-                                        navController.navigate(destino) {
-                                            popUpTo("login") { inclusive = true }
-                                        }
-                                    }
+                                    .onSuccess { irADestino(it.rol) }
                                     .onFailure { mensajeGeneral = it.message }
                             }
                         }
                     },
-                    enabled = !cargando,
+                    enabled = !cargando && !cargandoGoogle,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = goldAccent),
                     shape = RoundedCornerShape(8.dp)
@@ -131,6 +156,11 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository = r
                         Text("Iniciar Sesión", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                DivisorConTexto("O")
+                Spacer(modifier = Modifier.height(20.dp))
+                GoogleSignInButton(onClick = { iniciarSesionConGoogle() }, cargando = cargandoGoogle)
 
                 Spacer(modifier = Modifier.height(20.dp))
 

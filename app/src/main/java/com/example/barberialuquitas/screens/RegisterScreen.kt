@@ -17,18 +17,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.navigation.NavController
 import com.example.barberialuquitas.R
 import com.example.barberialuquitas.components.CustomTextField
+import com.example.barberialuquitas.components.DivisorConTexto
+import com.example.barberialuquitas.components.GoogleSignInButton
 import com.example.barberialuquitas.components.PasswordField
 import com.example.barberialuquitas.data.AuthRepository
 import com.example.barberialuquitas.util.esCorreoValido
 import com.example.barberialuquitas.util.esPasswordValida
+import com.example.barberialuquitas.util.obtenerGoogleIdToken
+import com.example.barberialuquitas.util.soloDigitos
+import com.example.barberialuquitas.util.soloLetras
 import kotlinx.coroutines.launch
 
 @Composable
@@ -37,15 +44,42 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
     var email by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
 
     var nameError by remember { mutableStateOf<String?>(null) }
     var emailError by remember { mutableStateOf<String?>(null) }
     var phoneError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
     var mensajeGeneral by remember { mutableStateOf<String?>(null) }
     var cargando by remember { mutableStateOf(false) }
+    var cargandoGoogle by remember { mutableStateOf(false) }
 
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    fun registrarseConGoogle() {
+        mensajeGeneral = null
+        cargandoGoogle = true
+        scope.launch {
+            try {
+                val idToken = obtenerGoogleIdToken(context)
+                val resultado = authRepository.iniciarSesionConGoogle(idToken)
+                cargandoGoogle = false
+                resultado
+                    .onSuccess { usuario ->
+                        val destino = if (usuario.rol == "administrador") "home_admin" else "home_cliente"
+                        navController.navigate(destino) { popUpTo(0) }
+                    }
+                    .onFailure { mensajeGeneral = it.message }
+            } catch (_: GetCredentialCancellationException) {
+                cargandoGoogle = false
+            } catch (_: Exception) {
+                cargandoGoogle = false
+                mensajeGeneral = "No se pudo registrar con Google."
+            }
+        }
+    }
 
     val darkBackground = Color(0xFF151515)
     val formBackground = Color(0xFF252525)
@@ -59,13 +93,22 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
             !esCorreoValido(email) -> "Ingresa un correo válido"
             else -> null
         }
-        phoneError = if (phone.isBlank()) "Ingresa tu teléfono" else null
+        phoneError = when {
+            phone.isBlank() -> "Ingresa tu teléfono"
+            phone.length < 9 -> "El teléfono debe tener 9 dígitos"
+            else -> null
+        }
         passwordError = when {
             password.isBlank() -> "Ingresa una contraseña"
             !esPasswordValida(password) -> "Debe tener al menos 6 caracteres"
             else -> null
         }
-        return listOf(nameError, emailError, phoneError, passwordError).all { it == null }
+        confirmPasswordError = when {
+            confirmPassword.isBlank() -> "Repite tu contraseña"
+            confirmPassword != password -> "Las contraseñas no coinciden"
+            else -> null
+        }
+        return listOf(nameError, emailError, phoneError, passwordError, confirmPasswordError).all { it == null }
     }
 
     Column(
@@ -98,13 +141,20 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
-                CustomTextField("NOMBRE COMPLETO", "Ej. Juan Pérez", fullName, { fullName = it }, Icons.Default.Person, errorText = nameError)
+                CustomTextField("NOMBRE COMPLETO", "Ej. Juan Pérez", fullName, { fullName = it }, Icons.Default.Person, errorText = nameError, filtro = ::soloLetras)
                 Spacer(modifier = Modifier.height(16.dp))
                 CustomTextField("CORREO ELECTRÓNICO", "juan@ejemplo.com", email, { email = it }, Icons.Default.Email, KeyboardType.Email, errorText = emailError)
                 Spacer(modifier = Modifier.height(16.dp))
-                CustomTextField("TELÉFONO", "+51 987 654 321", phone, { phone = it }, Icons.Default.Phone, KeyboardType.Phone, errorText = phoneError)
+                CustomTextField("TELÉFONO", "987654321", phone, { phone = it }, Icons.Default.Phone, KeyboardType.Phone, errorText = phoneError, filtro = ::soloDigitos)
                 Spacer(modifier = Modifier.height(16.dp))
                 PasswordField(value = password, onValueChange = { password = it }, errorText = passwordError)
+                Spacer(modifier = Modifier.height(16.dp))
+                PasswordField(
+                    value = confirmPassword,
+                    onValueChange = { confirmPassword = it },
+                    label = "REPETIR CONTRASEÑA",
+                    errorText = confirmPasswordError
+                )
 
                 if (mensajeGeneral != null) {
                     Spacer(modifier = Modifier.height(12.dp))
@@ -131,7 +181,7 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
                             }
                         }
                     },
-                    enabled = !cargando,
+                    enabled = !cargando && !cargandoGoogle,
                     modifier = Modifier.fillMaxWidth().height(50.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = goldAccent),
                     shape = RoundedCornerShape(8.dp)
@@ -146,6 +196,11 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(20.dp))
+                DivisorConTexto("O")
+                Spacer(modifier = Modifier.height(20.dp))
+                GoogleSignInButton(onClick = { registrarseConGoogle() }, cargando = cargandoGoogle)
 
                 Spacer(modifier = Modifier.height(20.dp))
 
