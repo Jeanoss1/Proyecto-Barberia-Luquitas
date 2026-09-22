@@ -1,5 +1,6 @@
 package com.example.barberialuquitas.data
 
+import android.util.Log
 import com.example.barberialuquitas.BuildConfig
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
@@ -10,6 +11,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
 private const val COLECCION_USUARIOS = "usuarios"
+private const val TAG = "AuthRepository"
 
 class AuthRepository(
     private val auth: FirebaseAuth = FirebaseAuth.getInstance(),
@@ -34,22 +36,29 @@ class AuthRepository(
         val usuario = Usuario(uid = uid, nombre = nombre, correo = correo, telefono = telefono)
         guardarUsuario(usuario)
         Result.success(usuario)
-    } catch (_: FirebaseAuthUserCollisionException) {
+    } catch (e: FirebaseAuthUserCollisionException) {
+        Log.e(TAG, "registrar: correo ya registrado", e)
         Result.failure(Exception("Ese correo ya está registrado."))
-    } catch (_: Exception) {
-        Result.failure(Exception("No se pudo completar el registro. Intenta nuevamente."))
+    } catch (e: Exception) {
+        Log.e(TAG, "registrar: fallo inesperado", e)
+        // TEMPORAL: muestra el mensaje real mientras depuramos. Revertir después.
+        Result.failure(Exception("Error al registrar: ${e.message ?: e.javaClass.simpleName}"))
     }
 
     suspend fun iniciarSesion(correo: String, password: String): Result<Usuario> = try {
         val resultado = auth.signInWithEmailAndPassword(correo, password).await()
         val uid = resultado.user?.uid ?: error("No se pudo obtener el usuario")
         Result.success(obtenerUsuario(uid, correo))
-    } catch (_: FirebaseAuthInvalidUserException) {
+    } catch (e: FirebaseAuthInvalidUserException) {
+        Log.e(TAG, "iniciarSesion: usuario invalido", e)
         Result.failure(Exception("Correo o contraseña incorrectos."))
-    } catch (_: FirebaseAuthInvalidCredentialsException) {
+    } catch (e: FirebaseAuthInvalidCredentialsException) {
+        Log.e(TAG, "iniciarSesion: credenciales invalidas", e)
         Result.failure(Exception("Correo o contraseña incorrectos."))
-    } catch (_: Exception) {
-        Result.failure(Exception("No se pudo iniciar sesión. Intenta nuevamente."))
+    } catch (e: Exception) {
+        Log.e(TAG, "iniciarSesion: fallo inesperado", e)
+        // TEMPORAL: muestra el mensaje real mientras depuramos. Revertir después.
+        Result.failure(Exception("Error al iniciar sesión: ${e.message ?: e.javaClass.simpleName}"))
     }
 
     suspend fun iniciarSesionConGoogle(idToken: String): Result<Usuario> = try {
@@ -72,21 +81,25 @@ class AuthRepository(
         }
 
         Result.success(usuario)
-    } catch (_: Exception) {
-        Result.failure(Exception("No se pudo iniciar sesión con Google."))
+    } catch (e: Exception) {
+        Log.e(TAG, "iniciarSesionConGoogle: fallo inesperado", e)
+        // TEMPORAL: muestra el mensaje real mientras depuramos. Revertir después.
+        Result.failure(Exception("Error al iniciar sesión con Google: ${e.message ?: e.javaClass.simpleName}"))
     }
 
     suspend fun enviarCorreoRecuperacion(correo: String): Result<Unit> = try {
         auth.sendPasswordResetEmail(correo).await()
         Result.success(Unit)
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        Log.e(TAG, "enviarCorreoRecuperacion: fallo inesperado", e)
         Result.failure(Exception("No se pudo enviar el correo de recuperación."))
     }
 
     suspend fun obtenerUsuarioActual(): Result<Usuario> = try {
         val uid = auth.currentUser?.uid ?: error("No hay una sesión activa")
         Result.success(obtenerUsuario(uid, auth.currentUser?.email ?: ""))
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        Log.e(TAG, "obtenerUsuarioActual: fallo inesperado", e)
         Result.failure(Exception("No se pudo cargar el perfil."))
     }
 
