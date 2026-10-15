@@ -10,7 +10,6 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 
-private const val COLECCION_USUARIOS = "usuarios"
 private const val TAG = "AuthRepository"
 
 class AuthRepository(
@@ -65,7 +64,7 @@ class AuthRepository(
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         val resultado = auth.signInWithCredential(credential).await()
         val user = resultado.user ?: error("No se pudo obtener el usuario")
-        val documento = firestore.collection(COLECCION_USUARIOS).document(user.uid).get().await()
+        val documento = firestore.collection(Colecciones.USUARIOS).document(user.uid).get().await()
 
         val usuario = if (documento.exists()) {
             obtenerUsuario(user.uid, user.email ?: "")
@@ -106,18 +105,18 @@ class AuthRepository(
     fun cerrarSesion() = auth.signOut()
 
     private suspend fun obtenerUsuario(uid: String, correoFallback: String): Usuario {
-        val documento = firestore.collection(COLECCION_USUARIOS).document(uid).get().await()
+        val documento = firestore.collection(Colecciones.USUARIOS).document(uid).get().await()
         return Usuario(
             uid = uid,
             nombre = documento.getString("nombre") ?: "",
             correo = documento.getString("correo") ?: correoFallback,
             telefono = documento.getString("telefono") ?: "",
-            rol = documento.getString("rol") ?: "cliente"
+            rol = documento.getString("rol") ?: Roles.CLIENTE
         )
     }
 
     private suspend fun guardarUsuario(usuario: Usuario) {
-        firestore.collection(COLECCION_USUARIOS).document(usuario.uid)
+        firestore.collection(Colecciones.USUARIOS).document(usuario.uid)
             .set(
                 mapOf(
                     "nombre" to usuario.nombre,

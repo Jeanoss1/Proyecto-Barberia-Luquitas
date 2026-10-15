@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 private val BarberiaColorScheme = darkColorScheme(
     primary = GoldAccent,
     secondary = TextGray,
-    tertiary = InputBackground,
+    tertiary = CardBackground,
     background = DarkBackground,
     surface = DarkBackground,
     onPrimary = DarkBackground,

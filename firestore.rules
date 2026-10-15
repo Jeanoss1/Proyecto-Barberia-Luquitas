@@ -1,0 +1,83 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    function esAdministrador() {
+      return estaAutenticado()
+        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'administrador';
+    }
+
+    function rutaCandado(barberoId, fecha, hora) {
+      return /databases/$(database)/documents/horarios_ocupados/$(barberoId + '_' + fecha + '_' + hora);
+    }
+
+    function rutaCita(citaId) {
+      return /databases/$(database)/documents/citas/$(citaId);
+    }
+
+    // Perfiles: cada usuario gestiona el suyo y no puede asignarse otro rol.
+    match /usuarios/{uid} {
+      allow read: if request.auth.uid == uid || esAdministrador();
+      allow create: if request.auth.uid == uid && request.resource.data.rol == 'cliente';
+      allow update: if request.auth.uid == uid && request.resource.data.rol == resource.data.rol;
+      allow delete: if false;
+    }
+
+    // Catálogos: solo lectura para clientes.
+    match /servicios/{servicioId} {
+      allow read: if estaAutenticado();
+      allow write: if esAdministrador();
+    }
+
+    match /barberos/{barberoId} {
+      allow read: if estaAutenticado();
+      allow write: if esAdministrador();
+    }
+
+    match /citas/{citaId} {
+      allow read: if estaAutenticado()
+        && (resource.data.clienteId == request.auth.uid || esAdministrador());
+
+      // Solo se crea junto con su candado (misma transacción), a nombre propio y en estado "reservada".
+      allow create: if estaAutenticado()
+        && request.resource.data.clienteId == request.auth.uid
+        && request.resource.data.estado == 'reservada'
+        && request.resource.data.creadaEn == request.time
+        && get(/databases/$(database)/documents/barberos/$(request.resource.data.barberoId)).data.activo == true
+        && request.resource.data.precio == get(/databases/$(database)/documents/servicios/$(request.resource.data.servicioId)).data.precio
+        && getAfter(rutaCandado(request.resource.data.barberoId, request.resource.data.fecha, request.resource.data.hora)).data.citaId == citaId;
+
+      // El cliente solo puede pasar su cita de "reservada" a "cancelada" y debe liberar el candado en el mismo batch.
+      allow update: if esAdministrador()
+        || (resource.data.clienteId == request.auth.uid
+          && resource.data.estado == 'reservada'
+          && request.resource.data.estado == 'cancelada'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
+          && !existsAfter(rutaCandado(resource.data.barberoId, resource.data.fecha, resource.data.hora)));
+
+      allow delete: if false;
+    }
+
+    // Candado por bloque: no contiene datos personales, por eso cualquier usuario autenticado lo puede leer.
+    match /horarios_ocupados/{candadoId} {
+      allow read: if estaAutenticado();
+
+      allow create: if estaAutenticado()
+        && candadoId == request.resource.data.barberoId + '_' + request.resource.data.fecha + '_' + request.resource.data.hora
+        && getAfter(rutaCita(request.resource.data.citaId)).data.clienteId == request.auth.uid;
+
+      // Nunca se sobrescribe: si el bloque ya existe, la reserva debe fallar.
+      allow update: if false;
+
+      allow delete: if esAdministrador()
+        || (get(rutaCita(resource.data.citaId)).data.clienteId == request.auth.uid
+          && getAfter(rutaCita(resource.data.citaId)).data.estado == 'cancelada');
+    }
+  }
+}

@@ -31,6 +31,8 @@ import com.example.barberialuquitas.components.DivisorConTexto
 import com.example.barberialuquitas.components.GoogleSignInButton
 import com.example.barberialuquitas.components.PasswordField
 import com.example.barberialuquitas.data.AuthRepository
+import com.example.barberialuquitas.navigation.Rutas
+import com.example.barberialuquitas.data.Roles
 import com.example.barberialuquitas.util.esCorreoValido
 import com.example.barberialuquitas.util.esPasswordValida
 import com.example.barberialuquitas.util.obtenerGoogleIdToken
@@ -68,7 +70,7 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
                 cargandoGoogle = false
                 resultado
                     .onSuccess { usuario ->
-                        val destino = if (usuario.rol == "administrador") "home_admin" else "home_cliente"
+                        val destino = if (usuario.rol == Roles.ADMINISTRADOR) Rutas.HOME_ADMIN else Rutas.homeCliente()
                         navController.navigate(destino) { popUpTo(0) }
                     }
                     .onFailure { mensajeGeneral = it.message }
@@ -173,8 +175,8 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
                                 cargando = false
                                 resultado
                                     .onSuccess {
-                                        navController.navigate("success") {
-                                            popUpTo("register") { inclusive = true }
+                                        navController.navigate(Rutas.SUCCESS) {
+                                            popUpTo(Rutas.REGISTER) { inclusive = true }
                                         }
                                     }
                                     .onFailure { mensajeGeneral = it.message }
@@ -211,7 +213,7 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
                         color = goldAccent,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { navController.navigate("login") }
+                        modifier = Modifier.clickable { navController.navigate(Rutas.LOGIN) }
                     )
                 }
             }

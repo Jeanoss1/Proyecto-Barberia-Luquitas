@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,15 +23,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.barberialuquitas.data.Servicio
 import com.example.barberialuquitas.data.ServicioRepository
-
-private val DarkBackground = Color(0xFF151515)
-private val CardBackground = Color(0xFF252525)
-private val GoldAccent = Color(0xFFE5B94E)
-private val TextGray = Color(0xFFA0A0A0)
+import com.example.barberialuquitas.ui.theme.CardBackground
+import com.example.barberialuquitas.ui.theme.DarkBackground
+import com.example.barberialuquitas.ui.theme.GoldAccent
+import com.example.barberialuquitas.ui.theme.TextGray
 
 @Composable
-fun ServiciosScreen(servicioRepository: ServicioRepository = remember { ServicioRepository() }) {
-    val servicios by servicioRepository.observarServicios().collectAsState(initial = null)
+fun ServiciosScreen(
+    alReservar: (Servicio) -> Unit,
+    servicioRepository: ServicioRepository = remember { ServicioRepository() }
+) {
+    val servicios by remember { servicioRepository.observarServicios() }.collectAsState(initial = null)
 
     Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
         Text(
@@ -52,7 +56,7 @@ fun ServiciosScreen(servicioRepository: ServicioRepository = remember { Servicio
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(servicios!!, key = { it.id }) { servicio ->
-                    ServicioCard(servicio)
+                    ServicioCard(servicio, alReservar = { alReservar(servicio) })
                 }
             }
         }
@@ -60,23 +64,31 @@ fun ServiciosScreen(servicioRepository: ServicioRepository = remember { Servicio
 }
 
 @Composable
-private fun ServicioCard(servicio: Servicio) {
+private fun ServicioCard(servicio: Servicio, alReservar: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardBackground),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(servicio.nombre, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(servicio.descripcion, color = TextGray, fontSize = 13.sp)
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(servicio.nombre, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(servicio.descripcion, color = TextGray, fontSize = 13.sp)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("S/ ${servicio.precio}", color = GoldAccent, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Text("S/ ${servicio.precio}", color = GoldAccent, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(
+                onClick = alReservar,
+                modifier = Modifier.fillMaxWidth().height(42.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = GoldAccent),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text("Reservar", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

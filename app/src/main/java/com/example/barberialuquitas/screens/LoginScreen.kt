@@ -28,6 +28,8 @@ import com.example.barberialuquitas.components.DivisorConTexto
 import com.example.barberialuquitas.components.GoogleSignInButton
 import com.example.barberialuquitas.components.PasswordField
 import com.example.barberialuquitas.data.AuthRepository
+import com.example.barberialuquitas.navigation.Rutas
+import com.example.barberialuquitas.data.Roles
 import com.example.barberialuquitas.util.esCorreoValido
 import com.example.barberialuquitas.util.obtenerGoogleIdToken
 import kotlinx.coroutines.launch
@@ -48,8 +50,8 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository = r
     val context = LocalContext.current
 
     fun irADestino(rol: String) {
-        val destino = if (rol == "administrador") "home_admin" else "home_cliente"
-        navController.navigate(destino) { popUpTo("login") { inclusive = true } }
+        val destino = if (rol == Roles.ADMINISTRADOR) Rutas.HOME_ADMIN else Rutas.homeCliente()
+        navController.navigate(destino) { popUpTo(Rutas.LOGIN) { inclusive = true } }
     }
 
     fun iniciarSesionConGoogle() {
@@ -171,7 +173,7 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository = r
                         color = goldAccent,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { navController.navigate("register") }
+                        modifier = Modifier.clickable { navController.navigate(Rutas.REGISTER) }
                     )
                 }
             }

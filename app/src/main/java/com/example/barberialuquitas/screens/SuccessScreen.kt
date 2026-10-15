@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.barberialuquitas.R
+import com.example.barberialuquitas.navigation.Rutas
 
 @Composable
 fun SuccessScreen(navController: NavController) {
@@ -44,7 +45,7 @@ fun SuccessScreen(navController: NavController) {
 
         Button(
             onClick = {
-                navController.navigate("home_cliente") {
+                navController.navigate(Rutas.homeCliente()) {
                     popUpTo(0)
                 }
             },
