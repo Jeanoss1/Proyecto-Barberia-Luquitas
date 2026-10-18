@@ -22,12 +22,20 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.barberialuquitas.data.AuthRepository
 import com.example.barberialuquitas.navigation.Rutas
+import com.example.barberialuquitas.screens.admin.AccesoAdministrador
 import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.GoldAccent
 import com.example.barberialuquitas.ui.theme.TextGray
 
 @Composable
 fun AdminHomeScreen(navController: NavController, authRepository: AuthRepository = remember { AuthRepository() }) {
+    AccesoAdministrador(navController, authRepository) {
+        PanelAdministrador(navController, authRepository)
+    }
+}
+
+@Composable
+private fun PanelAdministrador(navController: NavController, authRepository: AuthRepository) {
     Column(
         modifier = Modifier.fillMaxSize().background(DarkBackground).padding(32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

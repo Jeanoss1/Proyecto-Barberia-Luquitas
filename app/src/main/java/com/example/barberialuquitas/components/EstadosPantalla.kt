@@ -47,21 +47,21 @@ fun EncabezadoConAtras(titulo: String, alVolver: () -> Unit) {
 }
 
 @Composable
-fun PantallaCargando(modifier: Modifier = Modifier.fillMaxSize()) {
+fun PantallaCargando(modifier: Modifier = Modifier) {
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         CircularProgressIndicator(color = GoldAccent)
     }
 }
 
 @Composable
-fun MensajeVacio(texto: String, modifier: Modifier = Modifier.fillMaxSize()) {
+fun MensajeVacio(texto: String, modifier: Modifier = Modifier) {
     Box(modifier = modifier.padding(24.dp), contentAlignment = Alignment.Center) {
         Text(texto, color = TextGray, fontSize = 14.sp, textAlign = TextAlign.Center)
     }
 }
 
 @Composable
-fun MensajeError(mensaje: String, alReintentar: () -> Unit, modifier: Modifier = Modifier.fillMaxSize()) {
+fun MensajeError(mensaje: String, alReintentar: () -> Unit, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

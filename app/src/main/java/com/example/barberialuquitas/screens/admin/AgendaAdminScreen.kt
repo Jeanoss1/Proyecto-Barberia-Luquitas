@@ -26,7 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -46,10 +45,7 @@ import com.example.barberialuquitas.components.MensajeError
 import com.example.barberialuquitas.components.MensajeVacio
 import com.example.barberialuquitas.components.PantallaCargando
 import com.example.barberialuquitas.components.coloresCalendarioBarberia
-import com.example.barberialuquitas.data.AuthRepository
 import com.example.barberialuquitas.data.CitaRepository
-import com.example.barberialuquitas.data.Roles
-import com.example.barberialuquitas.navigation.Rutas
 import com.example.barberialuquitas.ui.theme.CardBackground
 import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.GoldAccent
@@ -61,21 +57,12 @@ import com.example.barberialuquitas.util.parsearFecha
 import java.time.LocalDate
 
 @Composable
-fun AgendaAdminScreen(navController: NavController, authRepository: AuthRepository = remember { AuthRepository() }) {
-    var esAdministrador by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        val usuario = authRepository.obtenerUsuarioActual().getOrNull()
-        when {
-            usuario == null -> navController.navigate(Rutas.LOGIN) { popUpTo(0) }
-            usuario.rol != Roles.ADMINISTRADOR -> navController.navigate(Rutas.homeCliente()) { popUpTo(0) }
-            else -> esAdministrador = true
+fun AgendaAdminScreen(navController: NavController) {
+    AccesoAdministrador(navController) {
+        Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
+            EncabezadoConAtras("Agenda general") { navController.popBackStack() }
+            AgendaDelDia()
         }
-    }
-
-    Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
-        EncabezadoConAtras("Agenda general") { navController.popBackStack() }
-        if (esAdministrador) AgendaDelDia() else PantallaCargando()
     }
 }
 
@@ -92,12 +79,13 @@ private fun AgendaDelDia(citaRepository: CitaRepository = remember { CitaReposit
 
     val turnos = resultado?.getOrNull()
     when {
-        resultado == null -> PantallaCargando()
+        resultado == null -> PantallaCargando(Modifier.fillMaxSize())
         turnos == null -> MensajeError(
             mensaje = resultado?.exceptionOrNull()?.message ?: "Ocurrió un error.",
-            alReintentar = { intento++ }
+            alReintentar = { intento++ },
+            modifier = Modifier.fillMaxSize()
         )
-        turnos.isEmpty() -> MensajeVacio("No hay turnos reservados para este día.")
+        turnos.isEmpty() -> MensajeVacio("No hay turnos reservados para este día.", modifier = Modifier.fillMaxSize())
         else -> {
             Text(
                 "${turnos.size} turno(s) reservado(s)",

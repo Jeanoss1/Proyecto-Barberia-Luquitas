@@ -65,12 +65,13 @@ fun MisCitasScreen(clienteId: String, citaRepository: CitaRepository = remember 
 
         val citas = resultado?.getOrNull()
         when {
-            resultado == null -> PantallaCargando()
+            resultado == null -> PantallaCargando(Modifier.fillMaxSize())
             citas == null -> MensajeError(
                 mensaje = resultado?.exceptionOrNull()?.message ?: "Ocurrió un error.",
-                alReintentar = { intento++ }
+                alReintentar = { intento++ },
+                modifier = Modifier.fillMaxSize()
             )
-            citas.isEmpty() -> MensajeVacio("Aún no tienes citas. Reserva tu primer servicio.")
+            citas.isEmpty() -> MensajeVacio("Aún no tienes citas. Reserva tu primer servicio.", modifier = Modifier.fillMaxSize())
             else -> {
                 val separadas = separarCitas(citas, LocalDateTime.now())
                 LazyColumn(
@@ -78,7 +79,7 @@ fun MisCitasScreen(clienteId: String, citaRepository: CitaRepository = remember 
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     seccionDeCitas("Próximas", separadas.proximas, "No tienes citas próximas.") { citaACancelar = it }
-                    seccionDeCitas("Pasadas", separadas.pasadas, "No tienes citas pasadas.")
+                    seccionDeCitas("Historial", separadas.historial, "Aún no tienes citas en tu historial.")
                 }
             }
         }

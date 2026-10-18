@@ -54,8 +54,11 @@ import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.ErrorRed
 import com.example.barberialuquitas.ui.theme.GoldAccent
 import com.example.barberialuquitas.ui.theme.TextGray
+import com.example.barberialuquitas.util.bloquesDesde
+import com.example.barberialuquitas.util.bloquesNecesarios
 import com.example.barberialuquitas.util.esFechaHoraFutura
 import com.example.barberialuquitas.util.formatearFechaLegible
+import com.example.barberialuquitas.util.horaDeTermino
 import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 
@@ -109,7 +112,9 @@ fun ConfirmacionReservaScreen(
                     barberoId = reserva.barbero.id,
                     barberoNombre = reserva.barbero.nombre,
                     fecha = fecha,
-                    hora = hora
+                    hora = hora,
+                    duracionMinutos = reserva.servicio.duracionMinutos,
+                    bloques = bloquesDesde(hora, bloquesNecesarios(reserva.servicio.duracionMinutos))
                 )
             )
             guardando = false
@@ -130,10 +135,11 @@ fun ConfirmacionReservaScreen(
 
         val reserva = datos?.getOrNull()
         when {
-            datos == null -> PantallaCargando()
+            datos == null -> PantallaCargando(Modifier.fillMaxSize())
             reserva == null -> MensajeError(
                 mensaje = datos?.exceptionOrNull()?.message ?: "Ocurrió un error.",
-                alReintentar = { intento++ }
+                alReintentar = { intento++ },
+                modifier = Modifier.fillMaxSize()
             )
             else -> Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
                 ResumenReserva(reserva.servicio, reserva.barbero.nombre, fecha, hora)
@@ -190,7 +196,8 @@ private fun ResumenReserva(servicio: Servicio, barberoNombre: String, fecha: Str
             FilaResumen("Servicio", servicio.nombre)
             FilaResumen("Barbero", barberoNombre)
             FilaResumen("Fecha", formatearFechaLegible(fecha))
-            FilaResumen("Hora", hora)
+            FilaResumen("Hora", "$hora - ${horaDeTermino(hora, servicio.duracionMinutos)}")
+            FilaResumen("Duración", "${servicio.duracionMinutos} min")
             HorizontalDivider(color = TextGray.copy(alpha = 0.3f))
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Total", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -212,7 +219,7 @@ private fun FilaResumen(etiqueta: String, valor: String) {
 @Composable
 private fun ResumenReservaPreview() {
     ResumenReserva(
-        servicio = Servicio(id = "1", nombre = "Corte clásico", precio = 25),
+        servicio = Servicio(id = "1", nombre = "Corte clásico", precio = 25, duracionMinutos = 45),
         barberoNombre = "Luquitas",
         fecha = "2026-10-20",
         hora = "10:30"

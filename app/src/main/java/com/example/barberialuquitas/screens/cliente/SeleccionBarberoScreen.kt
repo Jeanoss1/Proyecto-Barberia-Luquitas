@@ -52,7 +52,7 @@ fun SeleccionBarberoScreen(
         EncabezadoConAtras("Elige tu barbero") { navController.popBackStack() }
         servicio?.let {
             Text(
-                "Servicio: ${it.nombre} · S/ ${it.precio}",
+                "Servicio: ${it.nombre} · S/ ${it.precio} · ${it.duracionMinutos} min",
                 color = TextGray,
                 fontSize = 14.sp,
                 modifier = Modifier.padding(horizontal = 20.dp)
@@ -61,12 +61,13 @@ fun SeleccionBarberoScreen(
 
         val barberos = resultado?.getOrNull()
         when {
-            resultado == null -> PantallaCargando()
+            resultado == null -> PantallaCargando(Modifier.fillMaxSize())
             barberos == null -> MensajeError(
                 mensaje = resultado?.exceptionOrNull()?.message ?: "Ocurrió un error.",
-                alReintentar = { intento++ }
+                alReintentar = { intento++ },
+                modifier = Modifier.fillMaxSize()
             )
-            barberos.isEmpty() -> MensajeVacio("No hay barberos disponibles en este momento.")
+            barberos.isEmpty() -> MensajeVacio("No hay barberos disponibles en este momento.", modifier = Modifier.fillMaxSize())
             else -> LazyColumn(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)

@@ -76,6 +76,8 @@ private fun ServicioCard(servicio: Servicio, alReservar: () -> Unit) {
                     Text(servicio.nombre, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(servicio.descripcion, color = TextGray, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("${servicio.duracionMinutos} min", color = GoldAccent, fontSize = 12.sp)
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text("S/ ${servicio.precio}", color = GoldAccent, fontSize = 18.sp, fontWeight = FontWeight.Bold)

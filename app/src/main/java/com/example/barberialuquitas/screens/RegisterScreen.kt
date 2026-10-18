@@ -33,6 +33,7 @@ import com.example.barberialuquitas.components.PasswordField
 import com.example.barberialuquitas.data.AuthRepository
 import com.example.barberialuquitas.navigation.Rutas
 import com.example.barberialuquitas.data.Roles
+import com.example.barberialuquitas.util.SinCuentaGoogleException
 import com.example.barberialuquitas.util.esCorreoValido
 import com.example.barberialuquitas.util.esPasswordValida
 import com.example.barberialuquitas.util.obtenerGoogleIdToken
@@ -76,6 +77,9 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
                     .onFailure { mensajeGeneral = it.message }
             } catch (_: GetCredentialCancellationException) {
                 cargandoGoogle = false
+            } catch (e: SinCuentaGoogleException) {
+                cargandoGoogle = false
+                mensajeGeneral = e.message
             } catch (_: Exception) {
                 cargandoGoogle = false
                 mensajeGeneral = "No se pudo registrar con Google."

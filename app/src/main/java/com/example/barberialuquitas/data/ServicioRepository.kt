@@ -1,6 +1,7 @@
 package com.example.barberialuquitas.data
 
 import android.util.Log
+import com.example.barberialuquitas.util.DURACION_BLOQUE_MINUTOS
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
@@ -38,6 +39,7 @@ class ServicioRepository(
         id = documento.id,
         nombre = documento.getString("nombre") ?: "",
         descripcion = documento.getString("descripcion") ?: "",
-        precio = documento.getLong("precio") ?: 0
+        precio = documento.getLong("precio") ?: 0,
+        duracionMinutos = documento.getLong("duracionMinutos")?.toInt() ?: DURACION_BLOQUE_MINUTOS
     )
 }

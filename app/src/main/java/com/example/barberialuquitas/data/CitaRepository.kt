@@ -1,6 +1,7 @@
 package com.example.barberialuquitas.data
 
 import android.util.Log
+import com.example.barberialuquitas.util.DURACION_BLOQUE_MINUTOS
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -18,20 +19,22 @@ class CitaRepository(
 ) {
     suspend fun reservarCita(cita: Cita): Result<String> = try {
         val refCita = firestore.collection(Colecciones.CITAS).document()
-        val refCandado = firestore.collection(Colecciones.HORARIOS_OCUPADOS)
-            .document(idHorarioOcupado(cita.barberoId, cita.fecha, cita.hora))
+        val candados = cita.bloques.associateWith { hora -> refCandado(cita.barberoId, cita.fecha, hora) }
 
+        // Un candado por bloque: si cualquiera de los bloques que ocupa el servicio ya existe, la reserva falla.
         firestore.runTransaction { transaccion ->
-            if (transaccion.get(refCandado).exists()) throw HorarioOcupadoException()
-            transaccion.set(
-                refCandado,
-                mapOf(
-                    "citaId" to refCita.id,
-                    "barberoId" to cita.barberoId,
-                    "fecha" to cita.fecha,
-                    "hora" to cita.hora
+            if (candados.values.any { transaccion.get(it).exists() }) throw HorarioOcupadoException()
+            candados.forEach { (hora, ref) ->
+                transaccion.set(
+                    ref,
+                    mapOf(
+                        "citaId" to refCita.id,
+                        "barberoId" to cita.barberoId,
+                        "fecha" to cita.fecha,
+                        "hora" to hora
+                    )
                 )
-            )
+            }
             transaccion.set(refCita, aMapaNuevaCita(cita))
         }.await()
         Result.success(refCita.id)
@@ -47,14 +50,9 @@ class CitaRepository(
 
     suspend fun cancelarCita(cita: Cita): Result<Unit> = try {
         val refCita = firestore.collection(Colecciones.CITAS).document(cita.id)
-        val refCandado = firestore.collection(Colecciones.HORARIOS_OCUPADOS)
-            .document(idHorarioOcupado(cita.barberoId, cita.fecha, cita.hora))
-
-        firestore.batch()
-            .update(refCita, "estado", EstadosCita.CANCELADA)
-            .delete(refCandado)
-            .commit()
-            .await()
+        val lote = firestore.batch().update(refCita, "estado", EstadosCita.CANCELADA)
+        cita.bloques.forEach { hora -> lote.delete(refCandado(cita.barberoId, cita.fecha, hora)) }
+        lote.commit().await()
         Result.success(Unit)
     } catch (e: Exception) {
         Log.e(TAG, "cancelarCita: fallo inesperado", e)
@@ -113,8 +111,12 @@ class CitaRepository(
             }
         awaitClose { registro.remove() }
     }
+
+    private fun refCandado(barberoId: String, fecha: String, hora: String) =
+        firestore.collection(Colecciones.HORARIOS_OCUPADOS).document(idHorarioOcupado(barberoId, fecha, hora))
 }
 
+// Las citas creadas antes de guardar "bloques" ocupaban un solo bloque de 30 minutos.
 private fun aCita(documento: DocumentSnapshot) = Cita(
     id = documento.id,
     clienteId = documento.getString("clienteId") ?: "",
@@ -126,6 +128,9 @@ private fun aCita(documento: DocumentSnapshot) = Cita(
     barberoNombre = documento.getString("barberoNombre") ?: "",
     fecha = documento.getString("fecha") ?: "",
     hora = documento.getString("hora") ?: "",
+    duracionMinutos = documento.getLong("duracionMinutos")?.toInt() ?: DURACION_BLOQUE_MINUTOS,
+    bloques = (documento.get("bloques") as? List<*>)?.filterIsInstance<String>()?.takeIf { it.isNotEmpty() }
+        ?: listOfNotNull(documento.getString("hora")),
     estado = documento.getString("estado") ?: EstadosCita.RESERVADA
 )
 
@@ -139,6 +144,8 @@ private fun aMapaNuevaCita(cita: Cita) = mapOf(
     "barberoNombre" to cita.barberoNombre,
     "fecha" to cita.fecha,
     "hora" to cita.hora,
+    "duracionMinutos" to cita.duracionMinutos,
+    "bloques" to cita.bloques,
     "estado" to EstadosCita.RESERVADA,
     "creadaEn" to FieldValue.serverTimestamp()
 )

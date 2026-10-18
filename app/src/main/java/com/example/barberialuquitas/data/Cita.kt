@@ -1,5 +1,7 @@
 package com.example.barberialuquitas.data
 
+import com.example.barberialuquitas.util.DURACION_BLOQUE_MINUTOS
+
 data class Cita(
     val id: String = "",
     val clienteId: String = "",
@@ -11,5 +13,7 @@ data class Cita(
     val barberoNombre: String = "",
     val fecha: String = "",
     val hora: String = "",
+    val duracionMinutos: Int = DURACION_BLOQUE_MINUTOS,
+    val bloques: List<String> = listOf(hora),
     val estado: String = EstadosCita.RESERVADA
 )

@@ -45,11 +45,14 @@ import com.example.barberialuquitas.components.coloresCalendarioBarberia
 import com.example.barberialuquitas.data.Barbero
 import com.example.barberialuquitas.data.BarberoRepository
 import com.example.barberialuquitas.data.CitaRepository
+import com.example.barberialuquitas.data.Servicio
+import com.example.barberialuquitas.data.ServicioRepository
 import com.example.barberialuquitas.navigation.Rutas
 import com.example.barberialuquitas.ui.theme.CardBackground
 import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.GoldAccent
 import com.example.barberialuquitas.ui.theme.TextGray
+import com.example.barberialuquitas.util.bloquesNecesarios
 import com.example.barberialuquitas.util.calcularBloques
 import com.example.barberialuquitas.util.esFechaReservable
 import com.example.barberialuquitas.util.fechaDesdeMillisUtc
@@ -58,34 +61,43 @@ import com.example.barberialuquitas.util.primeraFechaReservable
 import java.time.LocalDate
 import java.time.LocalDateTime
 
+private data class DatosHorario(val barbero: Barbero, val servicio: Servicio)
+
 @Composable
 fun SeleccionHorarioScreen(
     navController: NavController,
     servicioId: String,
     barberoId: String,
-    barberoRepository: BarberoRepository = remember { BarberoRepository() }
+    barberoRepository: BarberoRepository = remember { BarberoRepository() },
+    servicioRepository: ServicioRepository = remember { ServicioRepository() }
 ) {
     var intento by remember { mutableIntStateOf(0) }
-    var resultado by remember { mutableStateOf<Result<Barbero>?>(null) }
+    var resultado by remember { mutableStateOf<Result<DatosHorario>?>(null) }
 
-    LaunchedEffect(barberoId, intento) {
+    LaunchedEffect(barberoId, servicioId, intento) {
         resultado = null
-        resultado = barberoRepository.obtenerBarbero(barberoId)
+        resultado = runCatching {
+            DatosHorario(
+                barbero = barberoRepository.obtenerBarbero(barberoId).getOrThrow(),
+                servicio = servicioRepository.obtenerServicio(servicioId).getOrThrow()
+            )
+        }
     }
 
     Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
         EncabezadoConAtras("Elige fecha y hora") { navController.popBackStack() }
 
-        val barbero = resultado?.getOrNull()
+        val datos = resultado?.getOrNull()
         when {
-            resultado == null -> PantallaCargando()
-            barbero == null -> MensajeError(
+            resultado == null -> PantallaCargando(Modifier.fillMaxSize())
+            datos == null -> MensajeError(
                 mensaje = resultado?.exceptionOrNull()?.message ?: "Ocurrió un error.",
-                alReintentar = { intento++ }
+                alReintentar = { intento++ },
+                modifier = Modifier.fillMaxSize()
             )
-            primeraFechaReservable(barbero.diasLaborables, LocalDate.now()) == null ->
-                MensajeVacio("${barbero.nombre} no tiene días de atención configurados.")
-            else -> CalendarioDelBarbero(barbero) { fecha, hora ->
+            primeraFechaReservable(datos.barbero.diasLaborables, LocalDate.now()) == null ->
+                MensajeVacio("${datos.barbero.nombre} no tiene días de atención configurados.", modifier = Modifier.fillMaxSize())
+            else -> CalendarioDelBarbero(datos.barbero, datos.servicio) { fecha, hora ->
                 navController.navigate(Rutas.confirmacionReserva(servicioId, barberoId, fecha, hora))
             }
         }
@@ -94,7 +106,11 @@ fun SeleccionHorarioScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ColumnScope.CalendarioDelBarbero(barbero: Barbero, alContinuar: (fecha: String, hora: String) -> Unit) {
+private fun ColumnScope.CalendarioDelBarbero(
+    barbero: Barbero,
+    servicio: Servicio,
+    alContinuar: (fecha: String, hora: String) -> Unit
+) {
     val hoy = remember { LocalDate.now() }
     val fechasPermitidas = remember(barbero) {
         object : SelectableDates {
@@ -116,7 +132,8 @@ private fun ColumnScope.CalendarioDelBarbero(barbero: Barbero, alContinuar: (fec
         modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)
     ) {
         Text(
-            "Barbero: ${barbero.nombre} · Atiende de ${barbero.horaInicio} a ${barbero.horaFin}",
+            "Barbero: ${barbero.nombre} · Atiende de ${barbero.horaInicio} a ${barbero.horaFin}\n" +
+                "${servicio.nombre} · ${servicio.duracionMinutos} min",
             color = TextGray,
             fontSize = 14.sp,
             modifier = Modifier.padding(horizontal = 4.dp)
@@ -141,7 +158,13 @@ private fun ColumnScope.CalendarioDelBarbero(barbero: Barbero, alContinuar: (fec
         if (fecha == null) {
             MensajeVacio("Selecciona una fecha para ver los horarios.", modifier = Modifier.fillMaxWidth())
         } else {
-            BloquesDelDia(barbero, fecha, horaSeleccionada, alSeleccionar = { horaSeleccionada = it })
+            BloquesDelDia(
+                barbero,
+                fecha,
+                bloquesNecesarios(servicio.duracionMinutos),
+                horaSeleccionada,
+                alSeleccionar = { horaSeleccionada = it }
+            )
         }
         Spacer(modifier = Modifier.height(16.dp))
     }
@@ -161,6 +184,7 @@ private fun ColumnScope.CalendarioDelBarbero(barbero: Barbero, alContinuar: (fec
 private fun BloquesDelDia(
     barbero: Barbero,
     fecha: LocalDate,
+    bloquesPorCita: Int,
     horaSeleccionada: String?,
     alSeleccionar: (String?) -> Unit,
     citaRepository: CitaRepository = remember { CitaRepository() }
@@ -179,7 +203,14 @@ private fun BloquesDelDia(
             modifier = Modifier.fillMaxWidth()
         )
         else -> {
-            val bloques = calcularBloques(barbero.horaInicio, barbero.horaFin, horasOcupadas, fecha, LocalDateTime.now())
+            val bloques = calcularBloques(
+                barbero.horaInicio,
+                barbero.horaFin,
+                horasOcupadas,
+                fecha,
+                LocalDateTime.now(),
+                bloquesPorCita
+            )
             LaunchedEffect(bloques, horaSeleccionada) {
                 if (bloques.none { it.hora == horaSeleccionada && it.disponible }) alSeleccionar(null)
             }

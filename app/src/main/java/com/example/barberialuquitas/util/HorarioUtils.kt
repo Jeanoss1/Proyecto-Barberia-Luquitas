@@ -14,6 +14,9 @@ import java.util.Locale
 
 const val DURACION_BLOQUE_MINUTOS = 30
 
+// Debe coincidir con el máximo que aceptan las reglas de Firestore (4 bloques = 2 horas).
+const val MAX_BLOQUES_POR_CITA = 4
+
 private const val DIAS_A_BUSCAR_FECHA_LIBRE = 31L
 
 val LOCALE_ES: Locale = Locale.forLanguageTag("es-PE")
@@ -23,22 +26,39 @@ private val FORMATO_FECHA_LEGIBLE: DateTimeFormatter = DateTimeFormatter.ofPatte
 
 data class BloqueHorario(val hora: String, val disponible: Boolean)
 
-data class CitasSeparadas(val proximas: List<Cita>, val pasadas: List<Cita>)
+data class CitasSeparadas(val proximas: List<Cita>, val historial: List<Cita>)
 
+fun bloquesNecesarios(duracionMinutos: Int): Int =
+    ((duracionMinutos + DURACION_BLOQUE_MINUTOS - 1) / DURACION_BLOQUE_MINUTOS).coerceIn(1, MAX_BLOQUES_POR_CITA)
+
+// Un inicio solo está disponible si todos los bloques que ocupa el servicio están libres y caben antes del cierre.
 fun calcularBloques(
     horaInicio: String,
     horaFin: String,
     horasOcupadas: Set<String>,
     fecha: LocalDate,
-    ahora: LocalDateTime
-): List<BloqueHorario> =
-    generarHorasDelDia(horaInicio, horaFin).map { hora ->
-        val texto = hora.format(FORMATO_HORA)
+    ahora: LocalDateTime,
+    bloquesPorCita: Int = 1
+): List<BloqueHorario> {
+    val horas = generarHorasDelDia(horaInicio, horaFin).map { it.format(FORMATO_HORA) }
+    return horas.mapIndexed { indice, texto ->
+        val bloquesDeLaCita = horas.drop(indice).take(bloquesPorCita)
         BloqueHorario(
             hora = texto,
-            disponible = texto !in horasOcupadas && fecha.atTime(hora).isAfter(ahora)
+            disponible = bloquesDeLaCita.size == bloquesPorCita &&
+                bloquesDeLaCita.none { it in horasOcupadas } &&
+                esFechaHoraFutura(fecha.toString(), texto, ahora)
         )
     }
+}
+
+fun bloquesDesde(hora: String, cantidad: Int): List<String> {
+    val inicio = parsearHora(hora) ?: return emptyList()
+    return (0 until cantidad).map { inicio.plusMinutes(it.toLong() * DURACION_BLOQUE_MINUTOS).format(FORMATO_HORA) }
+}
+
+fun horaDeTermino(hora: String, duracionMinutos: Int): String =
+    parsearHora(hora)?.plusMinutes(duracionMinutos.toLong())?.format(FORMATO_HORA) ?: hora
 
 fun generarHorasDelDia(horaInicio: String, horaFin: String): List<LocalTime> {
     val inicio = parsearHora(horaInicio) ?: return emptyList()
@@ -67,13 +87,22 @@ fun esFechaHoraFutura(fecha: String, hora: String, ahora: LocalDateTime): Boolea
 }
 
 fun separarCitas(citas: List<Cita>, ahora: LocalDateTime): CitasSeparadas {
-    val (proximas, pasadas) = citas.partition { cita ->
+    val (proximas, historial) = citas.partition { cita ->
         cita.estado == EstadosCita.RESERVADA && esFechaHoraFutura(cita.fecha, cita.hora, ahora)
     }
     return CitasSeparadas(
         proximas = proximas.sortedWith(compareBy({ it.fecha }, { it.hora })),
-        pasadas = pasadas.sortedWith(compareByDescending<Cita> { it.fecha }.thenByDescending { it.hora })
+        historial = historial.sortedWith(compareByDescending<Cita> { it.fecha }.thenByDescending { it.hora })
     )
+}
+
+// Una cita reservada cuyo servicio ya terminó se muestra como completada; el documento en Firestore no se modifica.
+fun estadoVisible(cita: Cita, ahora: LocalDateTime): String {
+    if (cita.estado != EstadosCita.RESERVADA) return cita.estado
+    val dia = parsearFecha(cita.fecha) ?: return cita.estado
+    val horaInicio = parsearHora(cita.hora) ?: return cita.estado
+    val fin = dia.atTime(horaInicio).plusMinutes(cita.duracionMinutos.toLong())
+    return if (ahora.isBefore(fin)) cita.estado else EstadosCita.COMPLETADA
 }
 
 fun describirDiasLaborables(diasLaborables: List<Int>): String =

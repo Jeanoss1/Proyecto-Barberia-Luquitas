@@ -35,7 +35,10 @@ import com.example.barberialuquitas.ui.theme.CardBackground
 import com.example.barberialuquitas.ui.theme.ErrorRed
 import com.example.barberialuquitas.ui.theme.GoldAccent
 import com.example.barberialuquitas.ui.theme.TextGray
+import com.example.barberialuquitas.util.estadoVisible
 import com.example.barberialuquitas.util.formatearFechaLegible
+import com.example.barberialuquitas.util.horaDeTermino
+import java.time.LocalDateTime
 
 @Composable
 fun CitaCard(cita: Cita, mostrarCliente: Boolean = false, alCancelar: (() -> Unit)? = null) {
@@ -53,13 +56,13 @@ fun CitaCard(cita: Cita, mostrarCliente: Boolean = false, alCancelar: (() -> Uni
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
                 )
-                EstadoChip(cita.estado)
+                EstadoChip(estadoVisible(cita, LocalDateTime.now()))
             }
             Spacer(modifier = Modifier.height(10.dp))
             if (mostrarCliente) DatoCita(Icons.Default.Person, "Cliente: ${cita.clienteNombre}")
             DatoCita(Icons.Default.ContentCut, "Barbero: ${cita.barberoNombre}")
             DatoCita(Icons.Default.CalendarMonth, formatearFechaLegible(cita.fecha))
-            DatoCita(Icons.Default.Schedule, cita.hora)
+            DatoCita(Icons.Default.Schedule, "${cita.hora} - ${horaDeTermino(cita.hora, cita.duracionMinutos)}")
             Spacer(modifier = Modifier.height(4.dp))
             Text("S/ ${cita.precio}", color = GoldAccent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
 

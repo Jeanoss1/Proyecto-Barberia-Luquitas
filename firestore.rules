@@ -3,6 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Bloques de 30 minutos; una cita ocupa como máximo 4 (MAX_BLOQUES_POR_CITA en la app).
+    // Las fechas y horas se guardan en hora de Lima (UTC-5, sin horario de verano).
+
     function estaAutenticado() {
       return request.auth != null;
     }
@@ -19,6 +22,82 @@ service cloud.firestore {
 
     function rutaCita(citaId) {
       return /databases/$(database)/documents/citas/$(citaId);
+    }
+
+    function esFecha(fecha) {
+      return fecha is string && fecha.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+
+    function esHora(hora) {
+      return hora is string && hora.matches('([01][0-9]|2[0-3]):[0-5][0-9]');
+    }
+
+    function minutosDelDia(hora) {
+      return int(hora.split(':')[0]) * 60 + int(hora.split(':')[1]);
+    }
+
+    function dia(fecha) {
+      return timestamp.date(int(fecha.split('-')[0]), int(fecha.split('-')[1]), int(fecha.split('-')[2]));
+    }
+
+    // Instante real (UTC) en que empieza la cita: hora de Lima + 5 horas.
+    function inicioCita(fecha, hora) {
+      return dia(fecha) + duration.value(minutosDelDia(hora) + 300, 'm');
+    }
+
+    // Las citas anteriores a la duración por servicio no tienen "bloques": ocupaban solo su hora.
+    function bloquesDe(cita) {
+      return cita.get('bloques', [cita.hora]);
+    }
+
+    // El bloque i debe ser consecutivo al anterior y tener su candado creado en la misma transacción.
+    function bloqueReservado(cita, i, citaId) {
+      return cita.bloques.size() <= i
+        || (minutosDelDia(cita.bloques[i]) == minutosDelDia(cita.hora) + 30 * i
+          && getAfter(rutaCandado(cita.barberoId, cita.fecha, cita.bloques[i])).data.citaId == citaId);
+    }
+
+    function bloqueLiberado(cita, i) {
+      return bloquesDe(cita).size() <= i
+        || !existsAfter(rutaCandado(cita.barberoId, cita.fecha, bloquesDe(cita)[i]));
+    }
+
+    function esReservaValida(cita, citaId) {
+      let barbero = get(/databases/$(database)/documents/barberos/$(cita.barberoId)).data;
+      let servicio = get(/databases/$(database)/documents/servicios/$(cita.servicioId)).data;
+      let duracion = servicio.get('duracionMinutos', 30);
+      let inicioAtencion = minutosDelDia(barbero.get('horaInicio', '09:00'));
+      let finAtencion = minutosDelDia(barbero.get('horaFin', '20:00'));
+      return esFecha(cita.fecha)
+        && esHora(cita.hora)
+        && cita.bloques is list
+        && cita.bloques.size() >= 1
+        && cita.bloques.size() <= 4
+        && cita.bloques[0] == cita.hora
+        && cita.duracionMinutos == duracion
+        && (cita.bloques.size() * 30 >= duracion || cita.bloques.size() == 4)
+        && cita.precio == servicio.precio
+        && barbero.activo == true
+        // Día laborable del barbero (1 = lunes ... 7 = domingo).
+        && dia(cita.fecha).dayOfWeek() in barbero.diasLaborables
+        // Dentro del horario de atención y alineada a los bloques de 30 minutos.
+        && minutosDelDia(cita.hora) >= inicioAtencion
+        && (minutosDelDia(cita.hora) - inicioAtencion) % 30 == 0
+        && minutosDelDia(cita.hora) + 30 * cita.bloques.size() <= finAtencion
+        // Nunca en el pasado.
+        && inicioCita(cita.fecha, cita.hora) > request.time
+        && bloqueReservado(cita, 0, citaId)
+        && bloqueReservado(cita, 1, citaId)
+        && bloqueReservado(cita, 2, citaId)
+        && bloqueReservado(cita, 3, citaId);
+    }
+
+    function esCandadoDeCitaPropia(candado) {
+      let cita = getAfter(rutaCita(candado.citaId)).data;
+      return cita.clienteId == request.auth.uid
+        && cita.barberoId == candado.barberoId
+        && cita.fecha == candado.fecha
+        && candado.hora in cita.bloques;
     }
 
     // Perfiles: cada usuario gestiona el suyo y no puede asignarse otro rol.
@@ -44,22 +123,23 @@ service cloud.firestore {
       allow read: if estaAutenticado()
         && (resource.data.clienteId == request.auth.uid || esAdministrador());
 
-      // Solo se crea junto con su candado (misma transacción), a nombre propio y en estado "reservada".
+      // Solo se crea junto con los candados de todos sus bloques (misma transacción), a nombre propio y en estado "reservada".
       allow create: if estaAutenticado()
         && request.resource.data.clienteId == request.auth.uid
         && request.resource.data.estado == 'reservada'
         && request.resource.data.creadaEn == request.time
-        && get(/databases/$(database)/documents/barberos/$(request.resource.data.barberoId)).data.activo == true
-        && request.resource.data.precio == get(/databases/$(database)/documents/servicios/$(request.resource.data.servicioId)).data.precio
-        && getAfter(rutaCandado(request.resource.data.barberoId, request.resource.data.fecha, request.resource.data.hora)).data.citaId == citaId;
+        && esReservaValida(request.resource.data, citaId);
 
-      // El cliente solo puede pasar su cita de "reservada" a "cancelada" y debe liberar el candado en el mismo batch.
+      // El cliente solo puede pasar su cita de "reservada" a "cancelada" y debe liberar todos sus candados en el mismo batch.
       allow update: if esAdministrador()
         || (resource.data.clienteId == request.auth.uid
           && resource.data.estado == 'reservada'
           && request.resource.data.estado == 'cancelada'
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
-          && !existsAfter(rutaCandado(resource.data.barberoId, resource.data.fecha, resource.data.hora)));
+          && bloqueLiberado(resource.data, 0)
+          && bloqueLiberado(resource.data, 1)
+          && bloqueLiberado(resource.data, 2)
+          && bloqueLiberado(resource.data, 3));
 
       allow delete: if false;
     }
@@ -70,7 +150,7 @@ service cloud.firestore {
 
       allow create: if estaAutenticado()
         && candadoId == request.resource.data.barberoId + '_' + request.resource.data.fecha + '_' + request.resource.data.hora
-        && getAfter(rutaCita(request.resource.data.citaId)).data.clienteId == request.auth.uid;
+        && esCandadoDeCitaPropia(request.resource.data);
 
       // Nunca se sobrescribe: si el bloque ya existe, la reserva debe fallar.
       allow update: if false;
