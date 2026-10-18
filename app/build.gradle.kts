@@ -34,6 +34,10 @@ android {
         compose = true
         buildConfig = true
     }
+    lint {
+        // AGP se mantiene en 9.3.x porque es el último compatible con Android Studio 2026.1.
+        disable += "AndroidGradlePluginVersion"
+    }
 }
 
 dependencies {
