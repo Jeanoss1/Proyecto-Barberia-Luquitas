@@ -130,7 +130,8 @@ service cloud.firestore {
         && request.resource.data.creadaEn == request.time
         && esReservaValida(request.resource.data, citaId);
 
-      // El cliente solo puede pasar su cita de "reservada" a "cancelada" y debe liberar todos sus candados en el mismo batch.
+      // El cliente solo puede pasar su cita de "reservada" a "cancelada" (liberando todos sus candados en el mismo batch)
+      // o a "completada" cuando ya terminó.
       allow update: if esAdministrador()
         || (resource.data.clienteId == request.auth.uid
           && resource.data.estado == 'reservada'
@@ -139,7 +140,14 @@ service cloud.firestore {
           && bloqueLiberado(resource.data, 0)
           && bloqueLiberado(resource.data, 1)
           && bloqueLiberado(resource.data, 2)
-          && bloqueLiberado(resource.data, 3));
+          && bloqueLiberado(resource.data, 3))
+        // Pasa a "completada" solo cuando el servicio ya terminó según la hora del servidor.
+        || (resource.data.clienteId == request.auth.uid
+          && resource.data.estado == 'reservada'
+          && request.resource.data.estado == 'completada'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
+          && inicioCita(resource.data.fecha, resource.data.hora)
+            + duration.value(resource.data.get('duracionMinutos', 30), 'm') <= request.time);
 
       allow delete: if false;
     }

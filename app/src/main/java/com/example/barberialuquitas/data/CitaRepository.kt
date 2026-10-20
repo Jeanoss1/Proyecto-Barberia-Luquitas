@@ -2,6 +2,7 @@ package com.example.barberialuquitas.data
 
 import android.util.Log
 import com.example.barberialuquitas.util.DURACION_BLOQUE_MINUTOS
+import com.example.barberialuquitas.util.estadoVisible
 import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -9,6 +10,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.time.LocalDateTime
 
 private const val TAG = "CitaRepository"
 
@@ -57,6 +59,24 @@ class CitaRepository(
     } catch (e: Exception) {
         Log.e(TAG, "cancelarCita: fallo inesperado", e)
         Result.failure(Exception("No se pudo cancelar la cita. Inténtalo de nuevo."))
+    }
+
+    // Guarda como "completada" las citas reservadas cuyo servicio ya terminó. Si falla (p. ej. reloj del
+    // dispositivo adelantado), la pantalla sigue mostrándolas como completadas con estadoVisible.
+    suspend fun marcarCompletadas(citas: List<Cita>, ahora: LocalDateTime) {
+        val terminadas = citas.filter {
+            it.estado == EstadosCita.RESERVADA && estadoVisible(it, ahora) == EstadosCita.COMPLETADA
+        }
+        if (terminadas.isEmpty()) return
+        try {
+            val lote = firestore.batch()
+            terminadas.forEach { cita ->
+                lote.update(firestore.collection(Colecciones.CITAS).document(cita.id), "estado", EstadosCita.COMPLETADA)
+            }
+            lote.commit().await()
+        } catch (e: Exception) {
+            Log.e(TAG, "marcarCompletadas: fallo al actualizar", e)
+        }
     }
 
     fun observarCitasDelCliente(clienteId: String): Flow<Result<List<Cita>>> = callbackFlow {

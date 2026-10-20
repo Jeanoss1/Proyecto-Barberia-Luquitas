@@ -40,8 +40,7 @@ class AuthRepository(
         Result.failure(Exception("Ese correo ya está registrado."))
     } catch (e: Exception) {
         Log.e(TAG, "registrar: fallo inesperado", e)
-        // TEMPORAL: muestra el mensaje real mientras depuramos. Revertir después.
-        Result.failure(Exception("Error al registrar: ${e.message ?: e.javaClass.simpleName}"))
+        Result.failure(Exception("No se pudo completar el registro. Revisa tu conexión e inténtalo de nuevo."))
     }
 
     suspend fun iniciarSesion(correo: String, password: String): Result<Usuario> = try {
@@ -56,8 +55,7 @@ class AuthRepository(
         Result.failure(Exception("Correo o contraseña incorrectos."))
     } catch (e: Exception) {
         Log.e(TAG, "iniciarSesion: fallo inesperado", e)
-        // TEMPORAL: muestra el mensaje real mientras depuramos. Revertir después.
-        Result.failure(Exception("Error al iniciar sesión: ${e.message ?: e.javaClass.simpleName}"))
+        Result.failure(Exception("No se pudo iniciar sesión. Revisa tu conexión e inténtalo de nuevo."))
     }
 
     suspend fun iniciarSesionConGoogle(idToken: String): Result<Usuario> = try {
@@ -82,8 +80,7 @@ class AuthRepository(
         Result.success(usuario)
     } catch (e: Exception) {
         Log.e(TAG, "iniciarSesionConGoogle: fallo inesperado", e)
-        // TEMPORAL: muestra el mensaje real mientras depuramos. Revertir después.
-        Result.failure(Exception("Error al iniciar sesión con Google: ${e.message ?: e.javaClass.simpleName}"))
+        Result.failure(Exception("No se pudo iniciar sesión con Google. Inténtalo de nuevo."))
     }
 
     suspend fun enviarCorreoRecuperacion(correo: String): Result<Unit> = try {

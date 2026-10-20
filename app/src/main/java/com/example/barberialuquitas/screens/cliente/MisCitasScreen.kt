@@ -18,6 +18,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -53,6 +54,10 @@ fun MisCitasScreen(clienteId: String, citaRepository: CitaRepository = remember 
     val resultado by remember(clienteId, intento) {
         citaRepository.observarCitasDelCliente(clienteId)
     }.collectAsState(initial = null)
+
+    LaunchedEffect(resultado) {
+        resultado?.getOrNull()?.let { citaRepository.marcarCompletadas(it, LocalDateTime.now()) }
+    }
 
     Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
         Text(
