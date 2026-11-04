@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -47,6 +48,7 @@ import com.example.barberialuquitas.ui.componentes.ContenidoSegunResultado
 import com.example.barberialuquitas.ui.componentes.FotoOInicial
 import com.example.barberialuquitas.ui.componentes.MensajeError
 import com.example.barberialuquitas.ui.componentes.PantallaCargando
+import com.example.barberialuquitas.ui.componentes.logoLocalDe
 import com.example.barberialuquitas.ui.theme.CardBackground
 import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.GoldAccent
@@ -160,7 +162,7 @@ private fun EncabezadoBarberia(barberia: Barberia, alCambiar: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 16.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            FotoOInicial(barberia.fotoUrl, barberia.nombre, tamano = 44.dp, forma = RoundedCornerShape(10.dp))
+            FotoOInicial(barberia.fotoUrl, barberia.nombre, tamano = 44.dp, forma = CircleShape, logoLocal = logoLocalDe(barberia))
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(barberia.nombre, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)

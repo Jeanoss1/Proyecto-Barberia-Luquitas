@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,6 +35,7 @@ import com.example.barberialuquitas.data.modelo.Barberia
 import com.example.barberialuquitas.data.repositorio.BarberiaRepository
 import com.example.barberialuquitas.ui.componentes.ContenidoSegunResultado
 import com.example.barberialuquitas.ui.componentes.FotoOInicial
+import com.example.barberialuquitas.ui.componentes.logoLocalDe
 import com.example.barberialuquitas.ui.theme.CardBackground
 import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.ErrorRed
@@ -96,7 +98,7 @@ fun BarberiaCard(barberia: Barberia, abierta: Boolean, alElegir: () -> Unit) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            FotoOInicial(barberia.fotoUrl, barberia.nombre, forma = RoundedCornerShape(12.dp))
+            FotoOInicial(barberia.fotoUrl, barberia.nombre, tamano = 64.dp, forma = CircleShape, logoLocal = logoLocalDe(barberia))
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(barberia.nombre, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)

@@ -100,7 +100,7 @@ fun LoginScreen(navController: NavController, authRepository: AuthRepository = r
         Spacer(modifier = Modifier.height(48.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.logo_barberia),
+            painter = painterResource(id = R.drawable.logo_barberchota),
             contentDescription = "Logo",
             modifier = Modifier.size(130.dp)
         )

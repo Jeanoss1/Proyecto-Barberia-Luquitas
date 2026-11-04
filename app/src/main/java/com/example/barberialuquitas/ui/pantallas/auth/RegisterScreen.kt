@@ -129,7 +129,7 @@ fun RegisterScreen(navController: NavController, authRepository: AuthRepository 
         Spacer(modifier = Modifier.height(24.dp))
 
         Image(
-            painter = painterResource(id = R.drawable.logo_barberia),
+            painter = painterResource(id = R.drawable.logo_barberchota),
             contentDescription = "Logo",
             modifier = Modifier.size(130.dp)
         )

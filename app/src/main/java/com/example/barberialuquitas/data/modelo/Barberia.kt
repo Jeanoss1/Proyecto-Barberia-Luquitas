@@ -14,6 +14,10 @@ data class Barberia(
     val diasLaborables: List<Int> = listOf(1, 2, 3, 4, 5, 6),
     // Fechas "yyyy-MM-dd" en las que no se atiende (feriados, vacaciones).
     val diasNoLaborables: List<String> = emptyList(),
+    // Posición en la lista que ve el cliente: menor número aparece primero.
+    val orden: Int = ORDEN_POR_DEFECTO,
     // true cuando ya adoptó los datos antiguos sin barbería (solo importa para la barbería original).
     val migrada: Boolean = true
 )
+
+const val ORDEN_POR_DEFECTO = 100

@@ -31,7 +31,7 @@ fun SuccessScreen(navController: NavController) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Image(painter = painterResource(id = R.drawable.logo_barberia), contentDescription = "Logo", modifier = Modifier.size(130.dp))
+        Image(painter = painterResource(id = R.drawable.logo_barberchota), contentDescription = "Logo", modifier = Modifier.size(130.dp))
         Spacer(modifier = Modifier.height(48.dp))
         
         Image(painter = painterResource(id = R.drawable.check_dorado), contentDescription = "Check", modifier = Modifier.size(80.dp))

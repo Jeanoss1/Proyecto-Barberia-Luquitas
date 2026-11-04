@@ -5,6 +5,7 @@ import com.example.barberialuquitas.data.modelo.Barbero
 import com.example.barberialuquitas.data.modelo.Cita
 import com.example.barberialuquitas.data.modelo.EstadosCita
 import com.example.barberialuquitas.data.modelo.ID_BARBERIA_ORIGINAL
+import com.example.barberialuquitas.data.modelo.ORDEN_POR_DEFECTO
 import com.example.barberialuquitas.data.modelo.Servicio
 import com.example.barberialuquitas.util.DURACION_BLOQUE_MINUTOS
 import com.google.firebase.firestore.DocumentSnapshot
@@ -25,6 +26,7 @@ internal fun aBarberia(documento: DocumentSnapshot) = Barberia(
     horaCierre = documento.texto("horaCierre", "20:00"),
     diasLaborables = documento.listaDeEnteros("diasLaborables"),
     diasNoLaborables = documento.listaDeTextos("diasNoLaborables").sorted(),
+    orden = documento.getLong("orden")?.toInt() ?: ORDEN_POR_DEFECTO,
     migrada = documento.getBoolean("migrada") ?: true
 )
 

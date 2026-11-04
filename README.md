@@ -1,7 +1,7 @@
 # Proyecto-Barberia-Luquitas
 Aplicación móvil para la gestión de citas y servicios de barberías, desarrollada para el curso de Desarrollo de Aplicaciones Móviles.
 
-Empezó como la app de **Barbería Luquitas** y ahora admite **varias barberías**: el cliente elige dónde atenderse y cada administrador gestiona solo la suya.
+La app se llama **BarberChota** y reúne **varias barberías** (la primera es Barbería Luquitas): el cliente elige dónde atenderse y cada administrador gestiona solo la suya. El logo de la app (`logo_barberchota.png`) va en login y registro; cada barbería muestra su propio logo en la lista (`ui/componentes/LogosBarberias.kt` o su `fotoUrl`).
 
 Kotlin · Jetpack Compose · Navigation Compose · Firebase Auth · Cloud Firestore.
 

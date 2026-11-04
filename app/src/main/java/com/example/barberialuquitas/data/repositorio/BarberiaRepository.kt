@@ -16,11 +16,11 @@ class BarberiaRepository(
 ) {
     private val barberias get() = firestore.collection(Colecciones.BARBERIAS)
 
-    // Lista que ve el cliente para elegir dónde atenderse.
+    // Lista que ve el cliente para elegir dónde atenderse, ordenada por "orden" y luego por nombre.
     fun observarBarberiasActivas(): Flow<Result<List<Barberia>>> =
         barberias.whereEqualTo("activa", true)
             .observar(TAG, "No se pudieron cargar las barberías.", ::aBarberia)
-            .map { resultado -> resultado.map { lista -> lista.sortedBy { it.nombre } } }
+            .map { resultado -> resultado.map { lista -> lista.sortedWith(compareBy({ it.orden }, { it.nombre })) } }
 
     fun observarBarberia(barberiaId: String): Flow<Result<Barberia?>> =
         barberias.document(barberiaId).observar(TAG, "No se pudo cargar la barbería.", ::aBarberia)
