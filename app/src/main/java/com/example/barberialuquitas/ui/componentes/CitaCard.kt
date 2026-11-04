@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -40,8 +41,16 @@ import com.example.barberialuquitas.util.formatearFechaLegible
 import com.example.barberialuquitas.util.horaDeTermino
 import java.time.LocalDateTime
 
+// Tarjeta de una cita. El cliente ve la barbería y puede cancelar; el administrador ve al cliente
+// y recibe sus botones de estado en "acciones" (RF16).
 @Composable
-fun CitaCard(cita: Cita, mostrarCliente: Boolean = false, alCancelar: (() -> Unit)? = null) {
+fun CitaCard(
+    cita: Cita,
+    mostrarCliente: Boolean = false,
+    mostrarBarberia: Boolean = false,
+    alCancelar: (() -> Unit)? = null,
+    acciones: (@Composable () -> Unit)? = null
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardBackground),
         shape = RoundedCornerShape(16.dp),
@@ -59,6 +68,9 @@ fun CitaCard(cita: Cita, mostrarCliente: Boolean = false, alCancelar: (() -> Uni
                 EstadoChip(estadoVisible(cita, LocalDateTime.now()))
             }
             Spacer(modifier = Modifier.height(10.dp))
+            if (mostrarBarberia && cita.barberiaNombre.isNotBlank()) {
+                DatoCita(Icons.Default.Storefront, cita.barberiaNombre)
+            }
             if (mostrarCliente) DatoCita(Icons.Default.Person, "Cliente: ${cita.clienteNombre}")
             DatoCita(Icons.Default.ContentCut, "Barbero: ${cita.barberoNombre}")
             DatoCita(Icons.Default.CalendarMonth, formatearFechaLegible(cita.fecha))
@@ -77,6 +89,10 @@ fun CitaCard(cita: Cita, mostrarCliente: Boolean = false, alCancelar: (() -> Uni
                 ) {
                     Text("Cancelar", fontWeight = FontWeight.Bold)
                 }
+            }
+            if (acciones != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                acciones()
             }
         }
     }
@@ -97,12 +113,14 @@ private fun CitaCardPreview() {
     CitaCard(
         cita = Cita(
             id = "1",
+            barberiaNombre = "Barbería Luquitas",
             servicioNombre = "Corte clásico",
             precio = 25,
             barberoNombre = "Luquitas",
             fecha = "2026-10-20",
             hora = "10:30"
         ),
+        mostrarBarberia = true,
         alCancelar = {}
     )
 }

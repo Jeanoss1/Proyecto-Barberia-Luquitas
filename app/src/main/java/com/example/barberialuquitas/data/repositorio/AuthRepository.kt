@@ -122,7 +122,8 @@ class AuthRepository(
             nombre = documento.getString("nombre") ?: "",
             correo = documento.getString("correo") ?: correoFallback,
             telefono = documento.getString("telefono") ?: "",
-            rol = documento.getString("rol") ?: Roles.CLIENTE
+            rol = documento.getString("rol") ?: Roles.CLIENTE,
+            barberiaId = documento.getString("barberiaId") ?: ""
         )
     }
 

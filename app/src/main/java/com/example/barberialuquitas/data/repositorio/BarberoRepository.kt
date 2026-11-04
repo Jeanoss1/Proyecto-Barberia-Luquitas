@@ -1,13 +1,10 @@
 package com.example.barberialuquitas.data.repositorio
 
-import android.util.Log
 import com.example.barberialuquitas.data.modelo.Barbero
 import com.example.barberialuquitas.data.modelo.Colecciones
-import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
 
 private const val TAG = "BarberoRepository"
@@ -15,40 +12,38 @@ private const val TAG = "BarberoRepository"
 class BarberoRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
-    fun observarBarberos(): Flow<Result<List<Barbero>>> = callbackFlow {
-        val registro = firestore.collection(Colecciones.BARBEROS)
+    private val barberos get() = firestore.collection(Colecciones.BARBEROS)
+
+    // Para reservar (RF05): solo los barberos activos de la barbería.
+    fun observarBarberosActivos(barberiaId: String): Flow<Result<List<Barbero>>> =
+        barberos.whereEqualTo("barberiaId", barberiaId)
             .whereEqualTo("activo", true)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    Log.e(TAG, "observarBarberos: fallo al escuchar", error)
-                    trySend(Result.failure(Exception("No se pudieron cargar los barberos.")))
-                    close()
-                    return@addSnapshotListener
-                }
-                val barberos = snapshot?.documents.orEmpty().map(::aBarbero).sortedBy { it.nombre }
-                trySend(Result.success(barberos))
-            }
-        awaitClose { registro.remove() }
-    }
+            .observar(TAG, "No se pudieron cargar los barberos.", ::aBarbero)
+            .map { resultado -> resultado.map { lista -> lista.sortedBy { it.nombre } } }
 
-    suspend fun obtenerBarbero(barberoId: String): Result<Barbero> = try {
-        val documento = firestore.collection(Colecciones.BARBEROS).document(barberoId).get().await()
-        if (!documento.exists()) error("El barbero $barberoId no existe")
-        Result.success(aBarbero(documento))
-    } catch (e: Exception) {
-        Log.e(TAG, "obtenerBarbero: fallo inesperado", e)
-        Result.failure(Exception("No se pudo cargar la información del barbero."))
-    }
+    // Gestión del administrador (RF14): activos e inactivos.
+    fun observarBarberosDeBarberia(barberiaId: String): Flow<Result<List<Barbero>>> =
+        barberos.whereEqualTo("barberiaId", barberiaId)
+            .observar(TAG, "No se pudieron cargar los barberos.", ::aBarbero)
+            .map { resultado -> resultado.map { lista -> lista.sortedWith(compareBy({ !it.activo }, { it.nombre })) } }
 
-    private fun aBarbero(documento: DocumentSnapshot) = Barbero(
-        id = documento.id,
-        nombre = documento.getString("nombre") ?: "",
-        especialidad = documento.getString("especialidad") ?: "",
-        fotoUrl = documento.getString("fotoUrl")?.takeIf { it.isNotBlank() },
-        activo = documento.getBoolean("activo") ?: false,
-        horaInicio = documento.getString("horaInicio") ?: "09:00",
-        horaFin = documento.getString("horaFin") ?: "20:00",
-        diasLaborables = (documento.get("diasLaborables") as? List<*>).orEmpty()
-            .mapNotNull { (it as? Number)?.toInt() }
-    )
+    suspend fun obtenerBarbero(barberoId: String): Result<Barbero> =
+        intentar(TAG, "No se pudo cargar la información del barbero.") {
+            val documento = barberos.document(barberoId).get().await()
+            if (!documento.exists()) error("El barbero $barberoId no existe")
+            aBarbero(documento)
+        }
+
+    // Crea el barbero si no tiene id; si lo tiene, lo reemplaza con los nuevos datos.
+    suspend fun guardarBarbero(barbero: Barbero): Result<Unit> =
+        intentar(TAG, "No se pudo guardar el barbero. Revisa los datos e inténtalo de nuevo.") {
+            val referencia = if (barbero.id.isBlank()) barberos.document() else barberos.document(barbero.id)
+            referencia.set(barbero.aMapa()).await()
+        }
+
+    // Dar de alta (true) o de baja (false). Las citas ya reservadas se mantienen.
+    suspend fun cambiarActivo(barberoId: String, activo: Boolean): Result<Unit> =
+        intentar(TAG, "No se pudo actualizar el barbero.") {
+            barberos.document(barberoId).update("activo", activo).await()
+        }
 }

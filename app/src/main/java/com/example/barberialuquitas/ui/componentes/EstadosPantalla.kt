@@ -87,3 +87,27 @@ private fun MensajeErrorPreview() {
         MensajeVacio("Aún no hay barberos disponibles.", modifier = Modifier.fillMaxWidth())
     }
 }
+
+// Muestra cargando, error con "Reintentar", vacío o el contenido según el estado de una carga.
+// Evita repetir el mismo "when" en cada pantalla.
+@Composable
+fun <T> ContenidoSegunResultado(
+    resultado: Result<T>?,
+    alReintentar: () -> Unit,
+    modifier: Modifier = Modifier,
+    mensajeVacio: String? = null,
+    estaVacio: (T) -> Boolean = { (it as? Collection<*>)?.isEmpty() == true },
+    contenido: @Composable (T) -> Unit
+) {
+    val datos = resultado?.getOrNull()
+    when {
+        resultado == null -> PantallaCargando(modifier)
+        resultado.isFailure || datos == null -> MensajeError(
+            mensaje = resultado.exceptionOrNull()?.message ?: "Ocurrió un error.",
+            alReintentar = alReintentar,
+            modifier = modifier
+        )
+        mensajeVacio != null && estaVacio(datos) -> MensajeVacio(mensajeVacio, modifier = modifier)
+        else -> contenido(datos)
+    }
+}

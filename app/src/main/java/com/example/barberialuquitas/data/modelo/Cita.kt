@@ -4,6 +4,8 @@ import com.example.barberialuquitas.util.DURACION_BLOQUE_MINUTOS
 
 data class Cita(
     val id: String = "",
+    val barberiaId: String = "",
+    val barberiaNombre: String = "",
     val clienteId: String = "",
     val clienteNombre: String = "",
     val servicioId: String = "",

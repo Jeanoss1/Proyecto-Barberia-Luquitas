@@ -2,7 +2,7 @@ package com.example.barberialuquitas.ui.componentes
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import com.example.barberialuquitas.data.modelo.EstadosCita
 import com.example.barberialuquitas.ui.theme.ErrorRed
 import com.example.barberialuquitas.ui.theme.GoldAccent
+import com.example.barberialuquitas.ui.theme.InfoBlue
 import com.example.barberialuquitas.ui.theme.SuccessGreen
 import com.example.barberialuquitas.ui.theme.TextGray
 
@@ -23,7 +24,7 @@ import com.example.barberialuquitas.ui.theme.TextGray
 fun EstadoChip(estado: String) {
     val color = colorDeEstado(estado)
     Text(
-        estado.replaceFirstChar { it.uppercase() },
+        EstadosCita.etiqueta(estado),
         color = color,
         fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
@@ -33,19 +34,22 @@ fun EstadoChip(estado: String) {
     )
 }
 
-private fun colorDeEstado(estado: String): Color = when (estado) {
+fun colorDeEstado(estado: String): Color = when (estado) {
     EstadosCita.RESERVADA -> GoldAccent
-    EstadosCita.COMPLETADA -> SuccessGreen
-    EstadosCita.CANCELADA -> ErrorRed
+    EstadosCita.ATENDIDA, EstadosCita.COMPLETADA -> SuccessGreen
+    EstadosCita.CANCELADA, EstadosCita.NO_ASISTIO -> ErrorRed
+    EstadosCita.POR_CONFIRMAR -> InfoBlue
     else -> TextGray
 }
 
 @Preview
 @Composable
 private fun EstadoChipPreview() {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         EstadoChip(EstadosCita.RESERVADA)
-        EstadoChip(EstadosCita.COMPLETADA)
+        EstadoChip(EstadosCita.POR_CONFIRMAR)
+        EstadoChip(EstadosCita.ATENDIDA)
+        EstadoChip(EstadosCita.NO_ASISTIO)
         EstadoChip(EstadosCita.CANCELADA)
     }
 }
