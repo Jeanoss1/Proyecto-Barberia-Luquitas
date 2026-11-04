@@ -18,7 +18,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,9 +54,6 @@ fun MisCitasScreen(clienteId: String, citaRepository: CitaRepository = remember 
         citaRepository.observarCitasDelCliente(clienteId)
     }.collectAsState(initial = null)
 
-    LaunchedEffect(resultado) {
-        resultado?.getOrNull()?.let { citaRepository.marcarCompletadas(it, LocalDateTime.now()) }
-    }
 
     Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
         Text(
@@ -161,6 +157,6 @@ private fun LazyListScope.seccionDeCitas(
         item(key = "$titulo-vacio") { MensajeVacio(mensajeVacio, modifier = Modifier.fillMaxWidth()) }
     }
     items(citas, key = { it.id }) { cita ->
-        CitaCard(cita, alCancelar = alCancelar?.let { cancelar -> { cancelar(cita) } })
+        CitaCard(cita, mostrarBarberia = true, alCancelar = alCancelar?.let { cancelar -> { cancelar(cita) } })
     }
 }

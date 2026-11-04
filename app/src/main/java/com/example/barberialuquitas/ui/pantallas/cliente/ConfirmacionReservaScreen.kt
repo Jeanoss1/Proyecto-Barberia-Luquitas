@@ -36,11 +36,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.barberialuquitas.data.modelo.Barberia
 import com.example.barberialuquitas.data.modelo.Barbero
 import com.example.barberialuquitas.data.modelo.Cita
 import com.example.barberialuquitas.data.modelo.Servicio
 import com.example.barberialuquitas.data.modelo.Usuario
 import com.example.barberialuquitas.data.repositorio.AuthRepository
+import com.example.barberialuquitas.data.repositorio.BarberiaRepository
 import com.example.barberialuquitas.data.repositorio.BarberoRepository
 import com.example.barberialuquitas.data.repositorio.CitaRepository
 import com.example.barberialuquitas.data.repositorio.HorarioOcupadoException
@@ -62,7 +64,7 @@ import com.example.barberialuquitas.util.horaDeTermino
 import java.time.LocalDateTime
 import kotlinx.coroutines.launch
 
-private data class DatosReserva(val servicio: Servicio, val barbero: Barbero, val usuario: Usuario)
+private data class DatosReserva(val servicio: Servicio, val barbero: Barbero, val barberia: Barberia, val usuario: Usuario)
 
 @Composable
 fun ConfirmacionReservaScreen(
@@ -74,7 +76,8 @@ fun ConfirmacionReservaScreen(
     servicioRepository: ServicioRepository = remember { ServicioRepository() },
     barberoRepository: BarberoRepository = remember { BarberoRepository() },
     authRepository: AuthRepository = remember { AuthRepository() },
-    citaRepository: CitaRepository = remember { CitaRepository() }
+    citaRepository: CitaRepository = remember { CitaRepository() },
+    barberiaRepository: BarberiaRepository = remember { BarberiaRepository() }
 ) {
     var intento by remember { mutableIntStateOf(0) }
     var datos by remember { mutableStateOf<Result<DatosReserva>?>(null) }
@@ -86,9 +89,11 @@ fun ConfirmacionReservaScreen(
     LaunchedEffect(intento) {
         datos = null
         datos = runCatching {
+            val barbero = barberoRepository.obtenerBarbero(barberoId).getOrThrow()
             DatosReserva(
                 servicio = servicioRepository.obtenerServicio(servicioId).getOrThrow(),
-                barbero = barberoRepository.obtenerBarbero(barberoId).getOrThrow(),
+                barbero = barbero,
+                barberia = barberiaRepository.obtenerBarberia(barbero.barberiaId).getOrThrow(),
                 usuario = authRepository.obtenerUsuarioActual().getOrThrow()
             )
         }
@@ -104,6 +109,8 @@ fun ConfirmacionReservaScreen(
         scope.launch {
             val resultado = citaRepository.reservarCita(
                 Cita(
+                    barberiaId = reserva.barberia.id,
+                    barberiaNombre = reserva.barberia.nombre,
                     clienteId = reserva.usuario.uid,
                     clienteNombre = reserva.usuario.nombre,
                     servicioId = reserva.servicio.id,
@@ -142,7 +149,7 @@ fun ConfirmacionReservaScreen(
                 modifier = Modifier.fillMaxSize()
             )
             else -> Column(modifier = Modifier.fillMaxSize().padding(20.dp)) {
-                ResumenReserva(reserva.servicio, reserva.barbero.nombre, fecha, hora)
+                ResumenReserva(reserva.servicio, reserva.barberia.nombre, reserva.barbero.nombre, fecha, hora)
                 if (mensajeError != null) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(mensajeError!!, color = ErrorRed, fontSize = 13.sp)
@@ -186,13 +193,14 @@ fun ConfirmacionReservaScreen(
 }
 
 @Composable
-private fun ResumenReserva(servicio: Servicio, barberoNombre: String, fecha: String, hora: String) {
+private fun ResumenReserva(servicio: Servicio, barberiaNombre: String, barberoNombre: String, fecha: String, hora: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = CardBackground),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            FilaResumen("Barbería", barberiaNombre)
             FilaResumen("Servicio", servicio.nombre)
             FilaResumen("Barbero", barberoNombre)
             FilaResumen("Fecha", formatearFechaLegible(fecha))
@@ -220,6 +228,7 @@ private fun FilaResumen(etiqueta: String, valor: String) {
 private fun ResumenReservaPreview() {
     ResumenReserva(
         servicio = Servicio(id = "1", nombre = "Corte clásico", precio = 25, duracionMinutos = 45),
+        barberiaNombre = "Barbería Luquitas",
         barberoNombre = "Luquitas",
         fecha = "2026-10-20",
         hora = "10:30"

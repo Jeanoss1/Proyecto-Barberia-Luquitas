@@ -1,8 +1,6 @@
 package com.example.barberialuquitas.ui.pantallas.admin
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,15 +37,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.barberialuquitas.data.modelo.EstadosCita
 import com.example.barberialuquitas.data.repositorio.CitaRepository
 import com.example.barberialuquitas.ui.componentes.CitaCard
-import com.example.barberialuquitas.ui.componentes.EncabezadoConAtras
-import com.example.barberialuquitas.ui.componentes.MensajeError
-import com.example.barberialuquitas.ui.componentes.MensajeVacio
-import com.example.barberialuquitas.ui.componentes.PantallaCargando
+import com.example.barberialuquitas.ui.componentes.ContenidoSegunResultado
 import com.example.barberialuquitas.ui.componentes.coloresCalendarioBarberia
 import com.example.barberialuquitas.ui.theme.CardBackground
-import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.GoldAccent
 import com.example.barberialuquitas.ui.theme.TextGray
 import com.example.barberialuquitas.util.fechaDesdeMillisUtc
@@ -56,48 +51,45 @@ import com.example.barberialuquitas.util.millisUtcDesdeFecha
 import com.example.barberialuquitas.util.parsearFecha
 import java.time.LocalDate
 
+// RF15: agenda de la barbería por día, con cliente y barbero. RF16: cada cita trae sus botones de estado.
 @Composable
 fun AgendaAdminScreen(navController: NavController) {
-    AccesoAdministrador(navController) {
-        Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
-            EncabezadoConAtras("Agenda general") { navController.popBackStack() }
-            AgendaDelDia()
-        }
+    PantallaAdministrador(navController, titulo = "Agenda general") { administrador ->
+        AgendaDelDia(administrador.barberiaId)
     }
 }
 
 @Composable
-private fun AgendaDelDia(citaRepository: CitaRepository = remember { CitaRepository() }) {
+private fun AgendaDelDia(barberiaId: String, citaRepository: CitaRepository = remember { CitaRepository() }) {
     var fechaTexto by rememberSaveable { mutableStateOf(LocalDate.now().toString()) }
     val fecha = parsearFecha(fechaTexto) ?: LocalDate.now()
     var intento by remember { mutableIntStateOf(0) }
-    val resultado by remember(fechaTexto, intento) {
-        citaRepository.observarAgendaDelDia(fechaTexto)
+    val resultado by remember(barberiaId, fechaTexto, intento) {
+        citaRepository.observarAgendaDelDia(barberiaId, fechaTexto)
     }.collectAsState(initial = null)
 
     SelectorDeFecha(fecha, alCambiar = { fechaTexto = it.toString() })
 
-    val turnos = resultado?.getOrNull()
-    when {
-        resultado == null -> PantallaCargando(Modifier.fillMaxSize())
-        turnos == null -> MensajeError(
-            mensaje = resultado?.exceptionOrNull()?.message ?: "Ocurrió un error.",
-            alReintentar = { intento++ },
-            modifier = Modifier.fillMaxSize()
+    ContenidoSegunResultado(
+        resultado = resultado,
+        alReintentar = { intento++ },
+        modifier = Modifier.fillMaxSize(),
+        mensajeVacio = "No hay turnos reservados para este día."
+    ) { turnos ->
+        val canceladas = turnos.count { it.estado == EstadosCita.CANCELADA }
+        Text(
+            "${turnos.size - canceladas} turno(s) · $canceladas cancelada(s)",
+            color = TextGray,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(horizontal = 20.dp)
         )
-        turnos.isEmpty() -> MensajeVacio("No hay turnos reservados para este día.", modifier = Modifier.fillMaxSize())
-        else -> {
-            Text(
-                "${turnos.size} turno(s) reservado(s)",
-                color = TextGray,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(turnos, key = { it.id }) { cita -> CitaCard(cita, mostrarCliente = true) }
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Las canceladas van al final para que la agenda muestre primero lo que sí se atiende.
+            items(turnos.sortedBy { it.estado == EstadosCita.CANCELADA }, key = { it.id }) { cita ->
+                CitaCard(cita, mostrarCliente = true, acciones = { AccionesEstadoCita(cita, citaRepository) })
             }
         }
     }

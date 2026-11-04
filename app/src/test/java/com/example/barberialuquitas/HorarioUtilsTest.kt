@@ -74,10 +74,10 @@ class HorarioUtilsTest {
     }
 
     @Test
-    fun citaReservadaSeMuestraCompletadaCuandoTerminaSuBloque() {
+    fun citaReservadaQuedaPorConfirmarCuandoTerminaSuBloque() {
         val cita = Cita(fecha = "2026-10-19", hora = "10:00")
         assertEquals(EstadosCita.RESERVADA, estadoVisible(cita, LocalDateTime.of(2026, 10, 19, 10, 15)))
-        assertEquals(EstadosCita.COMPLETADA, estadoVisible(cita, LocalDateTime.of(2026, 10, 19, 10, 30)))
+        assertEquals(EstadosCita.POR_CONFIRMAR, estadoVisible(cita, LocalDateTime.of(2026, 10, 19, 10, 30)))
     }
 
     @Test
@@ -113,9 +113,9 @@ class HorarioUtilsTest {
     }
 
     @Test
-    fun servicioDe60MinutosSeCompletaAlTerminarSuDuracion() {
+    fun servicioDe60MinutosQuedaPorConfirmarAlTerminarSuDuracion() {
         val cita = Cita(fecha = "2026-10-19", hora = "10:00", duracionMinutos = 60)
         assertEquals(EstadosCita.RESERVADA, estadoVisible(cita, LocalDateTime.of(2026, 10, 19, 10, 45)))
-        assertEquals(EstadosCita.COMPLETADA, estadoVisible(cita, LocalDateTime.of(2026, 10, 19, 11, 0)))
+        assertEquals(EstadosCita.POR_CONFIRMAR, estadoVisible(cita, LocalDateTime.of(2026, 10, 19, 11, 0)))
     }
 }

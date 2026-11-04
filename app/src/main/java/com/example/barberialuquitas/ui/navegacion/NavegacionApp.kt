@@ -9,6 +9,12 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.barberialuquitas.ui.pantallas.admin.AdminHomeScreen
 import com.example.barberialuquitas.ui.pantallas.admin.AgendaAdminScreen
+import com.example.barberialuquitas.ui.pantallas.admin.EditarBarberoScreen
+import com.example.barberialuquitas.ui.pantallas.admin.EditarServicioScreen
+import com.example.barberialuquitas.ui.pantallas.admin.GestionBarberosScreen
+import com.example.barberialuquitas.ui.pantallas.admin.GestionServiciosScreen
+import com.example.barberialuquitas.ui.pantallas.admin.HorarioAtencionScreen
+import com.example.barberialuquitas.ui.pantallas.admin.ReporteIngresosScreen
 import com.example.barberialuquitas.ui.pantallas.auth.LoginScreen
 import com.example.barberialuquitas.ui.pantallas.auth.RegisterScreen
 import com.example.barberialuquitas.ui.pantallas.auth.SuccessScreen
@@ -65,9 +71,19 @@ fun NavegacionApp() {
             )
         }
 
-        // ── Administrador (todas protegidas por rol con AccesoAdministrador) ──
+        // ── Administrador: todas usan AccesoAdministrador (RF11) ──
         composable(Rutas.HOME_ADMIN) { AdminHomeScreen(navController) }
         composable(Rutas.AGENDA_ADMIN) { AgendaAdminScreen(navController) }
+        composable(Rutas.SERVICIOS_ADMIN) { GestionServiciosScreen(navController) }
+        composable(Rutas.EDITAR_SERVICIO) { entrada ->
+            EditarServicioScreen(navController, servicioId = entrada.argumento(Rutas.ARG_SERVICIO_ID))
+        }
+        composable(Rutas.BARBEROS_ADMIN) { GestionBarberosScreen(navController) }
+        composable(Rutas.EDITAR_BARBERO) { entrada ->
+            EditarBarberoScreen(navController, barberoId = entrada.argumento(Rutas.ARG_BARBERO_ID))
+        }
+        composable(Rutas.HORARIO_ADMIN) { HorarioAtencionScreen(navController) }
+        composable(Rutas.REPORTE_ADMIN) { ReporteIngresosScreen(navController) }
     }
 }
 

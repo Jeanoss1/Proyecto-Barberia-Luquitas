@@ -25,57 +25,67 @@ import com.example.barberialuquitas.data.modelo.Servicio
 import com.example.barberialuquitas.data.repositorio.BarberoRepository
 import com.example.barberialuquitas.data.repositorio.ServicioRepository
 import com.example.barberialuquitas.ui.componentes.BarberoCard
+import com.example.barberialuquitas.ui.componentes.ContenidoSegunResultado
 import com.example.barberialuquitas.ui.componentes.EncabezadoConAtras
-import com.example.barberialuquitas.ui.componentes.MensajeError
-import com.example.barberialuquitas.ui.componentes.MensajeVacio
-import com.example.barberialuquitas.ui.componentes.PantallaCargando
 import com.example.barberialuquitas.ui.navegacion.Rutas
 import com.example.barberialuquitas.ui.theme.DarkBackground
 import com.example.barberialuquitas.ui.theme.TextGray
 
+// RF05: barberos activos de la barbería a la que pertenece el servicio elegido.
 @Composable
 fun SeleccionBarberoScreen(
     navController: NavController,
     servicioId: String,
-    barberoRepository: BarberoRepository = remember { BarberoRepository() },
     servicioRepository: ServicioRepository = remember { ServicioRepository() }
 ) {
     var intento by remember { mutableIntStateOf(0) }
-    val resultado by remember(intento) { barberoRepository.observarBarberos() }.collectAsState(initial = null)
-    var servicio by remember { mutableStateOf<Servicio?>(null) }
+    var servicio by remember { mutableStateOf<Result<Servicio>?>(null) }
 
-    LaunchedEffect(servicioId) {
-        servicioRepository.obtenerServicio(servicioId).onSuccess { servicio = it }
+    LaunchedEffect(servicioId, intento) {
+        servicio = null
+        servicio = servicioRepository.obtenerServicio(servicioId)
     }
 
     Column(modifier = Modifier.fillMaxSize().background(DarkBackground)) {
         EncabezadoConAtras("Elige tu barbero") { navController.popBackStack() }
-        servicio?.let {
-            Text(
-                "Servicio: ${it.nombre} · S/ ${it.precio} · ${it.duracionMinutos} min",
-                color = TextGray,
-                fontSize = 14.sp,
-                modifier = Modifier.padding(horizontal = 20.dp)
-            )
+        ContenidoSegunResultado(servicio, alReintentar = { intento++ }, modifier = Modifier.fillMaxSize()) {
+            BarberosDelServicio(it) { barberoId ->
+                navController.navigate(Rutas.seleccionHorario(servicioId, barberoId))
+            }
         }
+    }
+}
 
-        val barberos = resultado?.getOrNull()
-        when {
-            resultado == null -> PantallaCargando(Modifier.fillMaxSize())
-            barberos == null -> MensajeError(
-                mensaje = resultado?.exceptionOrNull()?.message ?: "Ocurrió un error.",
-                alReintentar = { intento++ },
-                modifier = Modifier.fillMaxSize()
-            )
-            barberos.isEmpty() -> MensajeVacio("No hay barberos disponibles en este momento.", modifier = Modifier.fillMaxSize())
-            else -> LazyColumn(
+@Composable
+private fun BarberosDelServicio(
+    servicio: Servicio,
+    barberoRepository: BarberoRepository = remember { BarberoRepository() },
+    alElegir: (barberoId: String) -> Unit
+) {
+    var intento by remember { mutableIntStateOf(0) }
+    val resultado by remember(servicio.barberiaId, intento) {
+        barberoRepository.observarBarberosActivos(servicio.barberiaId)
+    }.collectAsState(initial = null)
+
+    Column {
+        Text(
+            "Servicio: ${servicio.nombre} · S/ ${servicio.precio} · ${servicio.duracionMinutos} min",
+            color = TextGray,
+            fontSize = 14.sp,
+            modifier = Modifier.padding(horizontal = 20.dp)
+        )
+        ContenidoSegunResultado(
+            resultado = resultado,
+            alReintentar = { intento++ },
+            modifier = Modifier.fillMaxSize(),
+            mensajeVacio = "No hay barberos disponibles en este momento."
+        ) { barberos ->
+            LazyColumn(
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(barberos, key = { it.id }) { barbero ->
-                    BarberoCard(barbero) {
-                        navController.navigate(Rutas.seleccionHorario(servicioId, barbero.id))
-                    }
+                    BarberoCard(barbero, alElegir = { alElegir(barbero.id) })
                 }
             }
         }
