@@ -1,7 +1,7 @@
 package com.example.barberialuquitas
 
-import com.example.barberialuquitas.data.Cita
-import com.example.barberialuquitas.data.EstadosCita
+import com.example.barberialuquitas.data.modelo.Cita
+import com.example.barberialuquitas.data.modelo.EstadosCita
 import com.example.barberialuquitas.util.bloquesDesde
 import com.example.barberialuquitas.util.bloquesNecesarios
 import com.example.barberialuquitas.util.calcularBloques
@@ -11,12 +11,12 @@ import com.example.barberialuquitas.util.generarHorasDelDia
 import com.example.barberialuquitas.util.horaDeTermino
 import com.example.barberialuquitas.util.primeraFechaReservable
 import com.example.barberialuquitas.util.separarCitas
+import java.time.LocalDate
+import java.time.LocalDateTime
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.time.LocalDate
-import java.time.LocalDateTime
 
 class HorarioUtilsTest {
 

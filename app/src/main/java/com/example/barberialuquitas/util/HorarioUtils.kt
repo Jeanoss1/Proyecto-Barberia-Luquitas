@@ -1,7 +1,7 @@
 package com.example.barberialuquitas.util
 
-import com.example.barberialuquitas.data.Cita
-import com.example.barberialuquitas.data.EstadosCita
+import com.example.barberialuquitas.data.modelo.Cita
+import com.example.barberialuquitas.data.modelo.EstadosCita
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -17,7 +17,7 @@ const val DURACION_BLOQUE_MINUTOS = 30
 // Debe coincidir con el máximo que aceptan las reglas de Firestore (4 bloques = 2 horas).
 const val MAX_BLOQUES_POR_CITA = 4
 
-private const val DIAS_A_BUSCAR_FECHA_LIBRE = 31L
+internal const val DIAS_A_BUSCAR_FECHA_LIBRE = 31L
 
 val LOCALE_ES: Locale = Locale.forLanguageTag("es-PE")
 
@@ -96,14 +96,18 @@ fun separarCitas(citas: List<Cita>, ahora: LocalDateTime): CitasSeparadas {
     )
 }
 
-// Una cita reservada cuyo servicio ya terminó se muestra como completada; el documento en Firestore no se modifica.
+// Una cita reservada cuyo servicio ya terminó se muestra "por confirmar" hasta que el administrador
+// la marque como atendida o no asistió (RF16); el documento en Firestore no se modifica.
 fun estadoVisible(cita: Cita, ahora: LocalDateTime): String {
     if (cita.estado != EstadosCita.RESERVADA) return cita.estado
     val dia = parsearFecha(cita.fecha) ?: return cita.estado
     val horaInicio = parsearHora(cita.hora) ?: return cita.estado
     val fin = dia.atTime(horaInicio).plusMinutes(cita.duracionMinutos.toLong())
-    return if (ahora.isBefore(fin)) cita.estado else EstadosCita.COMPLETADA
+    return if (ahora.isBefore(fin)) cita.estado else EstadosCita.POR_CONFIRMAR
 }
+
+// El administrador solo marca "atendida" o "no asistió" cuando la cita ya empezó.
+fun yaEmpezo(cita: Cita, ahora: LocalDateTime): Boolean = !esFechaHoraFutura(cita.fecha, cita.hora, ahora)
 
 fun describirDiasLaborables(diasLaborables: List<Int>): String =
     diasLaborables.sorted()
@@ -123,4 +127,4 @@ fun millisUtcDesdeFecha(fecha: LocalDate): Long =
 
 fun parsearFecha(fecha: String): LocalDate? = runCatching { LocalDate.parse(fecha) }.getOrNull()
 
-private fun parsearHora(hora: String): LocalTime? = runCatching { LocalTime.parse(hora) }.getOrNull()
+internal fun parsearHora(hora: String): LocalTime? = runCatching { LocalTime.parse(hora) }.getOrNull()

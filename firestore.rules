@@ -1,27 +1,21 @@
 rules_version = '2';
 
+// Reglas de seguridad de Barbería Luquitas (varias barberías).
+//
+// - Cada barbería tiene su propio catálogo, barberos, horario y citas (campo "barberiaId").
+// - Un administrador solo gestiona la barbería indicada en su perfil (usuarios/{uid}.barberiaId). (RF11)
+// - Los datos creados antes de soportar varias barberías no tienen "barberiaId": pertenecen a la
+//   barbería original ("luquitas") y su administrador los adopta una sola vez desde la app.
+// - Bloques de 30 minutos; una cita ocupa como máximo 4 (MAX_BLOQUES_POR_CITA en la app).
+// - Las fechas y horas se guardan en hora de Lima (UTC-5, sin horario de verano).
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Bloques de 30 minutos; una cita ocupa como máximo 4 (MAX_BLOQUES_POR_CITA en la app).
-    // Las fechas y horas se guardan en hora de Lima (UTC-5, sin horario de verano).
+    // ───────────────────────── Utilidades ─────────────────────────
 
-    function estaAutenticado() {
-      return request.auth != null;
-    }
-
-    function esAdministrador() {
-      return estaAutenticado()
-        && exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
-        && get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol == 'administrador';
-    }
-
-    function rutaCandado(barberoId, fecha, hora) {
-      return /databases/$(database)/documents/horarios_ocupados/$(barberoId + '_' + fecha + '_' + hora);
-    }
-
-    function rutaCita(citaId) {
-      return /databases/$(database)/documents/citas/$(citaId);
+    function barberiaOriginal() {
+      return 'luquitas';
     }
 
     function esFecha(fecha) {
@@ -45,6 +39,107 @@ service cloud.firestore {
       return dia(fecha) + duration.value(minutosDelDia(hora) + 300, 'm');
     }
 
+    function textoNoVacio(valor) {
+      return valor is string && valor.size() > 0;
+    }
+
+    function esListaDeDias(dias) {
+      return dias is list && dias.size() <= 7;
+    }
+
+    // Documentos antiguos sin "barberiaId" pertenecen a la barbería original.
+    function barberiaDe(datos) {
+      return datos.get('barberiaId', barberiaOriginal());
+    }
+
+    // ───────────────────────── Usuarios y roles (RF11) ─────────────────────────
+
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    function rutaUsuario(uid) {
+      return /databases/$(database)/documents/usuarios/$(uid);
+    }
+
+    function rutaBarberia(barberiaId) {
+      return /databases/$(database)/documents/barberias/$(barberiaId);
+    }
+
+    function rutaCandado(barberoId, fecha, hora) {
+      return /databases/$(database)/documents/horarios_ocupados/$(barberoId + '_' + fecha + '_' + hora);
+    }
+
+    function rutaCita(citaId) {
+      return /databases/$(database)/documents/citas/$(citaId);
+    }
+
+    function perfil() {
+      return get(rutaUsuario(request.auth.uid)).data;
+    }
+
+    function esAdministrador() {
+      return estaAutenticado()
+        && exists(rutaUsuario(request.auth.uid))
+        && perfil().rol == 'administrador';
+    }
+
+    function miBarberia() {
+      return perfil().get('barberiaId', '');
+    }
+
+    function esAdminDe(barberiaId) {
+      return esAdministrador() && miBarberia() != '' && miBarberia() == barberiaId;
+    }
+
+    // Mientras la barbería original no termina de adoptar sus datos antiguos, su administrador
+    // puede leerlos todos (no se pueden filtrar por un campo que no existe).
+    function migrandoBarberiaOriginal() {
+      return esAdminDe(barberiaOriginal())
+        && get(rutaBarberia(barberiaOriginal())).data.get('migrada', false) == false;
+    }
+
+    // ───────────────────────── Validaciones de catálogo ─────────────────────────
+
+    function barberiaValida(b) {
+      return textoNoVacio(b.nombre)
+        && b.activa is bool
+        && esHora(b.horaApertura)
+        && esHora(b.horaCierre)
+        && minutosDelDia(b.horaApertura) < minutosDelDia(b.horaCierre)
+        && esListaDeDias(b.diasLaborables)
+        && b.diasNoLaborables is list;
+    }
+
+    function servicioValido(s) {
+      return textoNoVacio(s.nombre)
+        && s.precio is int && s.precio >= 0
+        && s.get('duracionMinutos', 30) is int
+        && s.get('duracionMinutos', 30) >= 5
+        && s.get('duracionMinutos', 30) <= 120
+        && s.get('activo', true) is bool;
+    }
+
+    function barberoValido(b) {
+      return textoNoVacio(b.nombre)
+        && b.activo is bool
+        && esHora(b.get('horaInicio', '09:00'))
+        && esHora(b.get('horaFin', '20:00'))
+        && esListaDeDias(b.get('diasLaborables', []));
+    }
+
+    // Crear con la barbería propia; editar sin cambiar de barbería (o adoptando un documento antiguo).
+    function puedeCrearEnSuBarberia() {
+      return esAdminDe(request.resource.data.barberiaId);
+    }
+
+    function puedeEditarEnSuBarberia() {
+      return esAdminDe(barberiaDe(resource.data))
+        && request.resource.data.barberiaId == barberiaDe(resource.data);
+    }
+
+    // ───────────────────────── Reservas ─────────────────────────
+
     // Las citas anteriores a la duración por servicio no tienen "bloques": ocupaban solo su hora.
     function bloquesDe(cita) {
       return cita.get('bloques', [cita.hora]);
@@ -62,14 +157,38 @@ service cloud.firestore {
         || !existsAfter(rutaCandado(cita.barberoId, cita.fecha, bloquesDe(cita)[i]));
     }
 
+    function todosLosBloquesLiberados(cita) {
+      return bloqueLiberado(cita, 0)
+        && bloqueLiberado(cita, 1)
+        && bloqueLiberado(cita, 2)
+        && bloqueLiberado(cita, 3);
+    }
+
+    function mayor(a, b) {
+      return a > b ? a : b;
+    }
+
+    function menor(a, b) {
+      return a < b ? a : b;
+    }
+
+    // La cita debe caber en el horario de la barbería (RF17) y en el del barbero.
     function esReservaValida(cita, citaId) {
       let barbero = get(/databases/$(database)/documents/barberos/$(cita.barberoId)).data;
       let servicio = get(/databases/$(database)/documents/servicios/$(cita.servicioId)).data;
+      let barberia = get(rutaBarberia(cita.barberiaId)).data;
       let duracion = servicio.get('duracionMinutos', 30);
-      let inicioAtencion = minutosDelDia(barbero.get('horaInicio', '09:00'));
-      let finAtencion = minutosDelDia(barbero.get('horaFin', '20:00'));
+      let apertura = mayor(minutosDelDia(barbero.get('horaInicio', '09:00')), minutosDelDia(barberia.horaApertura));
+      let cierre = menor(minutosDelDia(barbero.get('horaFin', '20:00')), minutosDelDia(barberia.horaCierre));
       return esFecha(cita.fecha)
         && esHora(cita.hora)
+        // Barbería, barbero y servicio son de la misma barbería y están activos.
+        && barberia.activa == true
+        && barberiaDe(barbero) == cita.barberiaId
+        && barberiaDe(servicio) == cita.barberiaId
+        && barbero.activo == true
+        && servicio.get('activo', true) == true
+        // Bloques y precio coherentes con el servicio.
         && cita.bloques is list
         && cita.bloques.size() >= 1
         && cita.bloques.size() <= 4
@@ -77,13 +196,14 @@ service cloud.firestore {
         && cita.duracionMinutos == duracion
         && (cita.bloques.size() * 30 >= duracion || cita.bloques.size() == 4)
         && cita.precio == servicio.precio
-        && barbero.activo == true
-        // Día laborable del barbero (1 = lunes ... 7 = domingo).
+        // Día de atención de la barbería y del barbero (1 = lunes ... 7 = domingo), sin feriados.
+        && dia(cita.fecha).dayOfWeek() in barberia.diasLaborables
         && dia(cita.fecha).dayOfWeek() in barbero.diasLaborables
+        && !(cita.fecha in barberia.diasNoLaborables)
         // Dentro del horario de atención y alineada a los bloques de 30 minutos.
-        && minutosDelDia(cita.hora) >= inicioAtencion
-        && (minutosDelDia(cita.hora) - inicioAtencion) % 30 == 0
-        && minutosDelDia(cita.hora) + 30 * cita.bloques.size() <= finAtencion
+        && minutosDelDia(cita.hora) >= apertura
+        && (minutosDelDia(cita.hora) - apertura) % 30 == 0
+        && minutosDelDia(cita.hora) + 30 * cita.bloques.size() <= cierre
         // Nunca en el pasado.
         && inicioCita(cita.fecha, cita.hora) > request.time
         && bloqueReservado(cita, 0, citaId)
@@ -100,28 +220,92 @@ service cloud.firestore {
         && candado.hora in cita.bloques;
     }
 
-    // Perfiles: cada usuario gestiona el suyo y no puede asignarse otro rol.
+    function soloCambia(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // RF16: el administrador marca la cita como atendida / no asistió, o la cancela liberando su horario.
+    function esCambioDeEstadoDelAdmin() {
+      let antes = resource.data.estado;
+      let despues = request.resource.data.estado;
+      return esAdminDe(barberiaDe(resource.data))
+        && soloCambia(['estado', 'actualizadaEn'])
+        && request.resource.data.actualizadaEn == request.time
+        && ((antes != 'cancelada' && despues in ['atendida', 'no_asistio'])
+          || (antes == 'reservada' && despues == 'cancelada' && todosLosBloquesLiberados(resource.data)));
+    }
+
+    // RF09: el cliente cancela su propia cita reservada liberando todos sus candados en el mismo batch.
+    function esCancelacionDelCliente() {
+      return resource.data.clienteId == request.auth.uid
+        && resource.data.estado == 'reservada'
+        && request.resource.data.estado == 'cancelada'
+        && soloCambia(['estado'])
+        && todosLosBloquesLiberados(resource.data);
+    }
+
+    // Migración única: las citas antiguas pasan a la barbería original.
+    function esAdopcionDeCitaAntigua() {
+      return migrandoBarberiaOriginal()
+        && !('barberiaId' in resource.data)
+        && soloCambia(['barberiaId', 'barberiaNombre'])
+        && request.resource.data.barberiaId == barberiaOriginal();
+    }
+
+    // ───────────────────────── Colecciones ─────────────────────────
+
+    // Perfiles: cada usuario gestiona el suyo y no puede cambiar su rol.
+    // Un administrador sin barbería puede asignarse la que registra en ese mismo batch.
     match /usuarios/{uid} {
       allow read: if request.auth.uid == uid || esAdministrador();
-      allow create: if request.auth.uid == uid && request.resource.data.rol == 'cliente';
-      allow update: if request.auth.uid == uid && request.resource.data.rol == resource.data.rol;
+      allow create: if request.auth.uid == uid
+        && request.resource.data.rol == 'cliente'
+        && !('barberiaId' in request.resource.data);
+      allow update: if request.auth.uid == uid
+        && request.resource.data.rol == resource.data.rol
+        && (request.resource.data.get('barberiaId', '') == resource.data.get('barberiaId', '')
+          || (resource.data.rol == 'administrador'
+            && resource.data.get('barberiaId', '') == ''
+            && !exists(rutaBarberia(request.resource.data.barberiaId))
+            && getAfter(rutaBarberia(request.resource.data.barberiaId)).data.creadaPor == uid));
       allow delete: if false;
     }
 
-    // Catálogos: solo lectura para clientes.
-    match /servicios/{servicioId} {
+    // Barberías: visibles para todos los usuarios; cada administrador edita solo la suya (RF17).
+    match /barberias/{barberiaId} {
       allow read: if estaAutenticado();
-      allow write: if esAdministrador();
+      allow create: if esAdministrador()
+        && miBarberia() == ''
+        && request.resource.data.creadaPor == request.auth.uid
+        && getAfter(rutaUsuario(request.auth.uid)).data.barberiaId == barberiaId
+        && barberiaValida(request.resource.data);
+      allow update: if esAdminDe(barberiaId)
+        && request.resource.data.creadaPor == resource.data.creadaPor
+        && barberiaValida(request.resource.data);
+      allow delete: if false;
     }
 
+    // Servicios (RF13): se desactivan, nunca se borran, porque las citas guardan su id.
+    match /servicios/{servicioId} {
+      allow read: if estaAutenticado();
+      allow create: if puedeCrearEnSuBarberia() && servicioValido(request.resource.data);
+      allow update: if puedeEditarEnSuBarberia() && servicioValido(request.resource.data);
+      allow delete: if false;
+    }
+
+    // Barberos (RF14): se dan de baja o de alta con "activo".
     match /barberos/{barberoId} {
       allow read: if estaAutenticado();
-      allow write: if esAdministrador();
+      allow create: if puedeCrearEnSuBarberia() && barberoValido(request.resource.data);
+      allow update: if puedeEditarEnSuBarberia() && barberoValido(request.resource.data);
+      allow delete: if false;
     }
 
     match /citas/{citaId} {
       allow read: if estaAutenticado()
-        && (resource.data.clienteId == request.auth.uid || esAdministrador());
+        && (resource.data.clienteId == request.auth.uid
+          || esAdminDe(resource.data.barberiaId)
+          || migrandoBarberiaOriginal());
 
       // Solo se crea junto con los candados de todos sus bloques (misma transacción), a nombre propio y en estado "reservada".
       allow create: if estaAutenticado()
@@ -130,24 +314,9 @@ service cloud.firestore {
         && request.resource.data.creadaEn == request.time
         && esReservaValida(request.resource.data, citaId);
 
-      // El cliente solo puede pasar su cita de "reservada" a "cancelada" (liberando todos sus candados en el mismo batch)
-      // o a "completada" cuando ya terminó.
-      allow update: if esAdministrador()
-        || (resource.data.clienteId == request.auth.uid
-          && resource.data.estado == 'reservada'
-          && request.resource.data.estado == 'cancelada'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
-          && bloqueLiberado(resource.data, 0)
-          && bloqueLiberado(resource.data, 1)
-          && bloqueLiberado(resource.data, 2)
-          && bloqueLiberado(resource.data, 3))
-        // Pasa a "completada" solo cuando el servicio ya terminó según la hora del servidor.
-        || (resource.data.clienteId == request.auth.uid
-          && resource.data.estado == 'reservada'
-          && request.resource.data.estado == 'completada'
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado'])
-          && inicioCita(resource.data.fecha, resource.data.hora)
-            + duration.value(resource.data.get('duracionMinutos', 30), 'm') <= request.time);
+      allow update: if esCambioDeEstadoDelAdmin()
+        || esCancelacionDelCliente()
+        || esAdopcionDeCitaAntigua();
 
       allow delete: if false;
     }
@@ -163,7 +332,8 @@ service cloud.firestore {
       // Nunca se sobrescribe: si el bloque ya existe, la reserva debe fallar.
       allow update: if false;
 
-      allow delete: if esAdministrador()
+      allow delete: if (esAdminDe(barberiaDe(get(rutaCita(resource.data.citaId)).data))
+          && getAfter(rutaCita(resource.data.citaId)).data.estado == 'cancelada')
         || (get(rutaCita(resource.data.citaId)).data.clienteId == request.auth.uid
           && getAfter(rutaCita(resource.data.citaId)).data.estado == 'cancelada');
     }
