@@ -1,6 +1,7 @@
 package com.example.barberialuquitas.ui.componentes
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,12 +36,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.barberialuquitas.R
 import com.example.barberialuquitas.ui.theme.ErrorRed
 import com.example.barberialuquitas.ui.theme.GoldAccent
 import com.example.barberialuquitas.ui.theme.TextGray
@@ -142,9 +145,11 @@ fun GoogleSignInButton(onClick: () -> Unit, cargando: Boolean = false) {
         if (cargando) {
             CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(20.dp))
         } else {
-            Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                Text("G", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GoldAccent)
-            }
+            Image(
+                painter = painterResource(R.drawable.ic_google),
+                contentDescription = "Google",
+                modifier = Modifier.size(20.dp)
+            )
             Spacer(modifier = Modifier.width(10.dp))
             Text("Continuar con Google", fontSize = 15.sp, fontWeight = FontWeight.Medium)
         }
