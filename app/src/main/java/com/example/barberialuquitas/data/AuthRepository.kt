@@ -99,6 +99,17 @@ class AuthRepository(
         Result.failure(Exception("No se pudo cargar el perfil."))
     }
 
+    suspend fun actualizarDatos(nombre: String, telefono: String): Result<Unit> = try {
+        val uid = auth.currentUser?.uid ?: error("No hay una sesión activa")
+        firestore.collection(Colecciones.USUARIOS).document(uid)
+            .update(mapOf("nombre" to nombre, "telefono" to telefono))
+            .await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e(TAG, "actualizarDatos: fallo inesperado", e)
+        Result.failure(Exception("No se pudieron guardar los cambios. Inténtalo de nuevo."))
+    }
+
     fun cerrarSesion() = auth.signOut()
 
     private suspend fun obtenerUsuario(uid: String, correoFallback: String): Usuario {

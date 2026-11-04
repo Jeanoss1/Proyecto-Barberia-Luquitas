@@ -1,10 +1,12 @@
 package com.example.barberialuquitas.screens.cliente
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
@@ -25,7 +27,7 @@ private val GoldAccent = Color(0xFFE5B94E)
 private val TextGray = Color(0xFFA0A0A0)
 
 @Composable
-fun PerfilScreen(usuario: Usuario, alCerrarSesion: () -> Unit) {
+fun PerfilScreen(usuario: Usuario, alEditarDatos: () -> Unit, alCerrarSesion: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().background(DarkBackground).padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -56,6 +58,18 @@ fun PerfilScreen(usuario: Usuario, alCerrarSesion: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
                 DatoPerfil(Icons.Default.Phone, "Teléfono", usuario.telefono)
             }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedButton(
+            onClick = alEditarDatos,
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            border = BorderStroke(1.dp, GoldAccent),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Icon(Icons.Default.Edit, contentDescription = null, tint = GoldAccent, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Editar datos", color = GoldAccent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
 
         Spacer(modifier = Modifier.weight(1f))

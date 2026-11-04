@@ -72,7 +72,11 @@ fun ClienteHomeScreen(
                 )
                 usuarioActual == null -> PantallaCargando(Modifier.fillMaxSize().background(DarkBackground))
                 pestanaActual == PestanaCliente.MIS_CITAS -> MisCitasScreen(clienteId = usuarioActual.uid)
-                else -> PerfilScreen(usuario = usuarioActual, alCerrarSesion = ::cerrarSesion)
+                else -> PerfilScreen(
+                    usuario = usuarioActual,
+                    alEditarDatos = { navController.navigate(Rutas.EDITAR_DATOS) },
+                    alCerrarSesion = ::cerrarSesion
+                )
             }
         }
     }

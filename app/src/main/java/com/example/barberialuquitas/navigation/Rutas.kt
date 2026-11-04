@@ -8,6 +8,7 @@ object Rutas {
     const val SUCCESS = "success"
     const val HOME_ADMIN = "home_admin"
     const val AGENDA_ADMIN = "agenda_admin"
+    const val EDITAR_DATOS = "editar_datos"
 
     const val ARG_PESTANA = "pestana"
     const val ARG_SERVICIO_ID = "servicioId"

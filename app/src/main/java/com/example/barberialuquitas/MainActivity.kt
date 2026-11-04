@@ -23,6 +23,7 @@ import com.example.barberialuquitas.screens.admin.AgendaAdminScreen
 import com.example.barberialuquitas.screens.SuccessScreen
 import com.example.barberialuquitas.screens.cliente.ClienteHomeScreen
 import com.example.barberialuquitas.screens.cliente.ConfirmacionReservaScreen
+import com.example.barberialuquitas.screens.cliente.EditarDatosScreen
 import com.example.barberialuquitas.screens.cliente.ReservaExitosaScreen
 import com.example.barberialuquitas.screens.cliente.SeleccionBarberoScreen
 import com.example.barberialuquitas.screens.cliente.SeleccionHorarioScreen
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(Rutas.HOME_ADMIN) { AdminHomeScreen(navController) }
                             composable(Rutas.AGENDA_ADMIN) { AgendaAdminScreen(navController) }
+                            composable(Rutas.EDITAR_DATOS) { EditarDatosScreen(navController) }
                             composable(Rutas.SELECCION_BARBERO) { entrada ->
                                 SeleccionBarberoScreen(navController, servicioId = entrada.argumento(Rutas.ARG_SERVICIO_ID))
                             }
