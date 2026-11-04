@@ -1,7 +1,7 @@
 package com.example.barberialuquitas.util
 
-import com.example.barberialuquitas.data.Cita
-import com.example.barberialuquitas.data.EstadosCita
+import com.example.barberialuquitas.data.modelo.Cita
+import com.example.barberialuquitas.data.modelo.EstadosCita
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
